@@ -8,7 +8,7 @@ import SignupPage from './pages/SignupPage';
 import LoginPage from './pages/LoginPage';
 import OnboardingPage from './pages/OnboardingPage';
 import HomePage from './pages/HomePage';
-const ExplorePage = () => <div className="min-h-screen flex items-center justify-center text-white text-2xl">Explore Page</div>;
+import ExplorePage from './pages/ExplorePage';
 const MovieDetailPage = () => <div className="min-h-screen flex items-center justify-center text-white text-2xl">Movie Detail Page</div>;
 const MoodPage = () => <div className="min-h-screen flex items-center justify-center text-white text-2xl">Mood Page</div>;
 const RecommendationsPage = () => <div className="min-h-screen flex items-center justify-center text-white text-2xl">Recommendations Page</div>;
