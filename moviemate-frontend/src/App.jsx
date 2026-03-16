@@ -10,7 +10,7 @@ import OnboardingPage from './pages/OnboardingPage';
 import HomePage from './pages/HomePage';
 import ExplorePage from './pages/ExplorePage';
 import MovieDetailPage from './pages/MovieDetailPage';
-const MoodPage = () => <div className="min-h-screen flex items-center justify-center text-white text-2xl">Mood Page</div>;
+import MoodPage from './pages/MoodPage';
 const RecommendationsPage = () => <div className="min-h-screen flex items-center justify-center text-white text-2xl">Recommendations Page</div>;
 const WatchlistPage = () => <div className="min-h-screen flex items-center justify-center text-white text-2xl">Watchlist Page</div>;
 const SearchResultsPage = () => <div className="min-h-screen flex items-center justify-center text-white text-2xl">Search Results Page</div>;
