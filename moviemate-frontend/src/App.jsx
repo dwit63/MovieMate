@@ -5,7 +5,7 @@ import Footer from './components/Footer';
 import ProtectedRoute from './components/ProtectedRoute';
 import LandingPage from './pages/LandingPage';
 import SignupPage from './pages/SignupPage';
-const LoginPage = () => <div className="min-h-screen flex items-center justify-center text-white text-2xl">Login Page</div>;
+import LoginPage from './pages/LoginPage';
 const OnboardingPage = () => <div className="min-h-screen flex items-center justify-center text-white text-2xl">Onboarding Page</div>;
 const HomePage = () => <div className="min-h-screen flex items-center justify-center text-white text-2xl">Home Page</div>;
 const ExplorePage = () => <div className="min-h-screen flex items-center justify-center text-white text-2xl">Explore Page</div>;
