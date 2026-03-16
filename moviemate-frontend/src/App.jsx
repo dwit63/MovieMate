@@ -11,7 +11,7 @@ import HomePage from './pages/HomePage';
 import ExplorePage from './pages/ExplorePage';
 import MovieDetailPage from './pages/MovieDetailPage';
 import MoodPage from './pages/MoodPage';
-const RecommendationsPage = () => <div className="min-h-screen flex items-center justify-center text-white text-2xl">Recommendations Page</div>;
+import RecommendationsPage from './pages/RecommendationsPage';
 const WatchlistPage = () => <div className="min-h-screen flex items-center justify-center text-white text-2xl">Watchlist Page</div>;
 const SearchResultsPage = () => <div className="min-h-screen flex items-center justify-center text-white text-2xl">Search Results Page</div>;
 const ProfilePage = () => <div className="min-h-screen flex items-center justify-center text-white text-2xl">Profile Page</div>;
