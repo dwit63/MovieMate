@@ -13,7 +13,7 @@ import MovieDetailPage from './pages/MovieDetailPage';
 import MoodPage from './pages/MoodPage';
 import RecommendationsPage from './pages/RecommendationsPage';
 import WatchlistPage from './pages/WatchlistPage';
-const SearchResultsPage = () => <div className="min-h-screen flex items-center justify-center text-white text-2xl">Search Results Page</div>;
+import SearchResultsPage from './pages/SearchResultsPage';
 const ProfilePage = () => <div className="min-h-screen flex items-center justify-center text-white text-2xl">Profile Page</div>;
 const NotFoundPage = () => <div className="min-h-screen flex items-center justify-center text-white text-2xl">404 — Page Not Found</div>;
 
