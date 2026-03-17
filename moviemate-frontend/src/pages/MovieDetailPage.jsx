@@ -295,7 +295,10 @@ export default function MovieDetailPage() {
                     </div>
                     <h5 className="font-bold text-white text-sm truncate">{m.title}</h5>
                     <p className="text-xs text-gray-500 mt-0.5">{m.year} · {m.genres[0]}</p>
-                    <button className="mt-2 w-full rounded-md bg-white/5 py-1.5 text-xs font-bold text-white hover:bg-white/10 transition-colors">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); navigate(`/movie/${m.id}`); }}
+                      className="mt-2 w-full rounded-md bg-white/5 py-1.5 text-xs font-bold text-white hover:bg-white/10 transition-colors"
+                    >
                       View
                     </button>
                   </div>

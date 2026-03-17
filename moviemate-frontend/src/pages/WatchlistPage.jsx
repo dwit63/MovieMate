@@ -164,7 +164,7 @@ export default function WatchlistPage() {
                     <div>
                       <div className="flex items-start justify-between gap-2 flex-wrap">
                         <h3
-                          className="text-white font-bold text-lg leading-tight cursor-pointer hover:text-accent transition-colors truncate"
+                          className="text-white font-semibold text-sm leading-tight cursor-pointer hover:text-accent transition-colors truncate"
                           onClick={() => navigate(`/movie/${movie.id}`)}
                         >
                           {movie.title}
@@ -176,7 +176,7 @@ export default function WatchlistPage() {
                         </div>
                       </div>
 
-                      <p className="text-gray-500 text-sm mt-1">
+                      <p className="text-gray-500 text-xs mt-1">
                         {movie.year}
                         {movie.runtime ? ` · ${Math.floor(movie.runtime / 60)}h ${movie.runtime % 60}m` : ''}
                       </p>

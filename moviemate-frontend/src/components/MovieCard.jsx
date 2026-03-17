@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { Star, Plus, Check, Clock } from 'lucide-react';
+import { Star, Plus, Check } from 'lucide-react';
 import { useState } from 'react';
 import GenreTag from './GenreTag';
 

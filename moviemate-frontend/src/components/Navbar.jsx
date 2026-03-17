@@ -1,5 +1,6 @@
+import { useState } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
-import { Film, Bell, LogOut, User, Compass, Smile, Bookmark } from 'lucide-react';
+import { Film, Bell, LogOut, User, Compass, Smile, Bookmark, Menu, X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import SearchBar from './SearchBar';
 
@@ -22,9 +23,13 @@ const navLinkClass = ({ isActive }) =>
 export default function Navbar() {
   const { isAuthenticated, user, logout } = useAuth();
   const navigate = useNavigate();
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  const closeMobile = () => setMobileOpen(false);
 
   const handleLogout = () => {
     logout();
+    closeMobile();
     navigate('/');
   };
 
@@ -112,8 +117,38 @@ export default function Navbar() {
               </button>
             </div>
           </div>
+
+          {/* Mobile hamburger */}
+          <button
+            onClick={() => setMobileOpen((v) => !v)}
+            className="md:hidden p-2 rounded-full hover:bg-dark-hover transition-colors text-gray-400 hover:text-white"
+            aria-label="Toggle menu"
+          >
+            {mobileOpen ? <X size={20} /> : <Menu size={20} />}
+          </button>
         </div>
       </div>
+
+      {/* Mobile dropdown */}
+      {mobileOpen && (
+        <div className="md:hidden border-t border-dark-border bg-dark-secondary/98 px-4 py-3 flex flex-col gap-1">
+          <NavLink to="/explore" className={navLinkClass} onClick={closeMobile}>
+            <Compass size={16} />
+            Explore
+          </NavLink>
+          <NavLink to="/mood" className={navLinkClass} onClick={closeMobile}>
+            <Smile size={16} />
+            Mood
+          </NavLink>
+          <NavLink to="/watchlist" className={navLinkClass} onClick={closeMobile}>
+            <Bookmark size={16} />
+            Watchlist
+          </NavLink>
+          <div className="mt-2 pt-2 border-t border-dark-border">
+            <SearchBar />
+          </div>
+        </div>
+      )}
     </nav>
   );
 }

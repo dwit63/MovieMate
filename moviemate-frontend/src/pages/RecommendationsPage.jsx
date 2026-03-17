@@ -2,10 +2,8 @@ import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { RefreshCw, Rocket, Cpu, Heart, Gem } from 'lucide-react';
 import { motion } from 'framer-motion';
-import RecommendationCard from '../components/RecommendationCard';
 import GenreTag from '../components/GenreTag';
 import { mockRecommendations, mockMovies } from '../data/mockData';
-import { getHiddenGems } from '../services/api';
 
 // ── Static hidden gems (pulled from mockMovies, rated ≥7.5, pre-2020) ────────
 const HIDDEN_GEMS_IDS = [7, 12, 13, 15, 16]; // BR2049, Arrival, Contact, Matrix, Ex Machina
@@ -84,7 +82,7 @@ function BecauseLikedRow({ title, movies, icon: Icon, seed }) {
               </div>
             </div>
             <div className="bg-dark-card border border-dark-border p-3 rounded-xl flex-1">
-              <h3 className="text-white font-bold text-base mb-1 group-hover:text-accent transition-colors truncate">
+              <h3 className="text-white font-semibold text-sm mb-1 group-hover:text-accent transition-colors truncate">
                 {movie.title}
               </h3>
               <p className="text-gray-400 text-xs leading-relaxed line-clamp-2">
@@ -216,7 +214,7 @@ export default function RecommendationsPage() {
                       <span className="bg-accent/20 backdrop-blur-md text-accent text-[10px] font-bold px-2 py-1 rounded uppercase tracking-widest">
                         {label}
                       </span>
-                      <h4 className="text-white font-bold text-lg mt-1 leading-tight">{movie.title}</h4>
+                      <h4 className="text-white font-semibold text-sm mt-1 leading-tight">{movie.title}</h4>
                     </div>
                   </div>
                 </motion.div>
