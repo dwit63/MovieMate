@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useAuth } from '../context/AuthContext';
 import { Link, useNavigate } from 'react-router-dom';
+import { useState } from 'react';
 import { Film, Eye, EyeOff, Chrome, Apple } from 'lucide-react';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
-import { useAuth } from '../context/AuthContext';
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -35,18 +35,19 @@ export default function LoginPage() {
     const errs = validate();
     if (Object.keys(errs).length > 0) { setErrors(errs); return; }
     setLoading(true);
-    try {
-      const result = await login(form.email.trim(), form.password);
-      if (result?.user?.isOnboarded === false) {
+
+    const result = await login(form.email.trim(), form.password);
+
+    setLoading(false);
+
+    if (result.success) {
+      if (!result.user.is_onboarded) {
         navigate('/onboarding');
       } else {
         navigate('/home');
       }
-    } catch {
-      setErrors({ form: 'Invalid credentials. Please try again.' });
-    } finally {
-      setLoading(false);
     }
+    // Error toast is shown automatically by AuthContext
   };
 
   return (

@@ -44,14 +44,15 @@ export default function SignupPage() {
     const errs = validate();
     if (Object.keys(errs).length > 0) { setErrors(errs); return; }
     setLoading(true);
-    try {
-      await signup(form.name.trim(), form.email.trim(), form.password);
+
+    const result = await signup(form.name.trim(), form.email.trim(), form.password);
+
+    setLoading(false);
+
+    if (result.success) {
       navigate('/onboarding');
-    } catch {
-      setErrors({ form: 'Something went wrong. Please try again.' });
-    } finally {
-      setLoading(false);
     }
+    // Error toast is shown automatically by AuthContext
   };
 
   return (

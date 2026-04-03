@@ -1,126 +1,187 @@
+/**
+ * src/services/api.js — API Service
+ *
+ * This file handles ALL communication between the frontend and backend.
+ *
+ * HOW IT WORKS:
+ * 1. We create an "axios instance" with the backend URL (http://localhost:8000)
+ * 2. We add an "interceptor" that automatically attaches the JWT token to every request
+ * 3. We export functions that the rest of the app can call
+ *
+ * WHAT IS AXIOS?
+ * Axios is a library for making HTTP requests. It's like fetch() but easier to use.
+ * axios.post("/signup", data) → sends a POST request to the backend with the data
+ * axios.get("/me") → sends a GET request to get data from the backend
+ */
+
 import axios from 'axios';
-import {
-  mockMovies,
-  mockTrendingMovies,
-  mockRecommendations,
-  mockWatchlist,
-  mockRatings,
-  mockUserProfile,
-} from '../data/mockData';
-import { API_BASE_URL } from '../utils/constants';
 
-const apiClient = axios.create({
-  baseURL: API_BASE_URL,
-  headers: { 'Content-Type': 'application/json' },
+// Create an axios instance with the backend base URL
+const API = axios.create({
+  baseURL: 'http://localhost:8000/api',  // Our FastAPI backend
+  headers: {
+    'Content-Type': 'application/json',
+  },
 });
 
-apiClient.interceptors.request.use((config) => {
-  const token = localStorage.getItem('moviemate_token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+/**
+ * REQUEST INTERCEPTOR
+ *
+ * This runs BEFORE every request is sent to the backend.
+ * It checks if there's a JWT token in localStorage.
+ * If there is, it adds it to the request header as:
+ *   Authorization: Bearer <token>
+ *
+ * This is how the backend knows who's making the request.
+ */
+API.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('moviemate_token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
   }
-  return config;
-});
-
-apiClient.interceptors.response.use(
-  (res) => res,
-  (err) => Promise.reject(err)
 );
 
-const delay = (ms = 300) => new Promise((r) => setTimeout(r, ms));
+/**
+ * RESPONSE INTERCEPTOR
+ *
+ * This runs AFTER every response comes back from the backend.
+ * If we get a 401 (Unauthorized) error, it means the token is expired or invalid.
+ * We clear the stored token and redirect to the login page.
+ */
+API.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response && error.response.status === 401) {
+      localStorage.removeItem('moviemate_token');
+      // Optionally redirect to login
+      // window.location.href = '/login';
+    }
+    return Promise.reject(error);
+  }
+);
 
-export const getMovies = async (page = 1) => {
-  await delay();
-  return { results: mockMovies, totalPages: 3, page };
+// ============================================================
+// AUTHENTICATION API CALLS
+// ============================================================
+
+/**
+ * Sign up a new user.
+ * Sends: { name, email, password }
+ * Receives: { token, user, message }
+ */
+export const signupUser = async (name, email, password) => {
+  const response = await API.post('/auth/signup', { name, email, password });
+  return response.data;
+};
+
+/**
+ * Log in an existing user.
+ * Sends: { email, password }
+ * Receives: { token, user, message }
+ */
+export const loginUser = async (email, password) => {
+  const response = await API.post('/auth/login', { email, password });
+  return response.data;
+};
+
+/**
+ * Get current user info (used to check if token is still valid on app load).
+ * Sends: nothing (token is in the header automatically)
+ * Receives: { id, name, email, preferred_genres, is_onboarded }
+ */
+export const getCurrentUser = async () => {
+  const response = await API.get('/auth/me');
+  return response.data;
+};
+
+/**
+ * Update user profile.
+ * Sends: { name?, password?, preferred_genres?, is_onboarded? }
+ * Receives: updated user object
+ */
+export const updateProfile = async (updateData) => {
+  const response = await API.put('/auth/profile', updateData);
+  return response.data;
+};
+
+// ============================================================
+// MOVIE API CALLS (Phase 3 — placeholders for now)
+// ============================================================
+
+export const getMovies = async () => {
+  // Will be implemented in Phase 3
+  return [];
 };
 
 export const getTrendingMovies = async () => {
-  await delay();
-  return { results: mockTrendingMovies };
+  return [];
 };
 
 export const getTopRatedMovies = async () => {
-  await delay();
-  return { results: [...mockMovies].sort((a, b) => b.rating - a.rating).slice(0, 10) };
+  return [];
 };
 
 export const searchMovies = async (query) => {
-  await delay(200);
-  const q = query.toLowerCase();
-  const results = mockMovies.filter(
-    (m) =>
-      m.title.toLowerCase().includes(q) ||
-      m.genres.some((g) => g.toLowerCase().includes(q))
-  );
-  return { results, query };
+  return [];
 };
 
 export const getMovieById = async (id) => {
-  await delay();
-  const movie = mockMovies.find((m) => m.id === Number(id));
-  if (!movie) throw new Error('Movie not found');
-  return movie;
+  return null;
 };
 
+// ============================================================
+// RECOMMENDATION API CALLS (Phase 4 — placeholders)
+// ============================================================
+
 export const getRecommendations = async () => {
-  await delay();
-  return { results: mockRecommendations };
+  return [];
 };
 
 export const getSimilarMovies = async (movieId) => {
-  await delay();
-  const movie = mockMovies.find((m) => m.id === Number(movieId));
-  if (!movie) return { results: [] };
-  const similar = mockMovies
-    .filter((m) => m.id !== movie.id && m.genres.some((g) => movie.genres.includes(g)))
-    .slice(0, 8);
-  return { results: similar };
+  return [];
 };
 
 export const getMoodMovies = async (mood) => {
-  await delay();
-  return { results: mockMovies.slice(0, 12), mood };
+  return [];
 };
 
 export const getHiddenGems = async () => {
-  await delay();
-  const gems = mockMovies.filter((m) => m.rating >= 7.5 && m.year < 2020).slice(0, 8);
-  return { results: gems };
+  return [];
 };
 
+// ============================================================
+// WATCHLIST API CALLS (Phase 5 — placeholders)
+// ============================================================
+
 export const getWatchlist = async () => {
-  await delay();
-  return { results: mockWatchlist };
+  return [];
 };
 
 export const addToWatchlist = async (movieId) => {
-  await delay(200);
-  return { success: true, movieId };
+  return {};
 };
 
 export const removeFromWatchlist = async (movieId) => {
-  await delay(200);
-  return { success: true, movieId };
+  return {};
 };
 
+// ============================================================
+// RATING API CALLS (Phase 5 — placeholders)
+// ============================================================
+
 export const rateMovie = async (movieId, rating) => {
-  await delay(200);
-  return { success: true, movieId, rating };
+  return {};
 };
 
 export const getUserRatings = async () => {
-  await delay();
-  return { results: mockRatings };
+  return [];
 };
 
-export const getUserProfile = async () => {
-  await delay();
-  return mockUserProfile;
-};
-
-export const updateProfile = async (data) => {
-  await delay(400);
-  return { ...mockUserProfile, ...data };
-};
-
-export default apiClient;
+// Export the axios instance if needed elsewhere
+export default API;
