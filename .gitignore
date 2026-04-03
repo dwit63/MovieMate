@@ -1,0 +1,19 @@
+# Environment variables (NEVER upload secrets to GitHub)
+.env
+
+# Virtual environment
+venv/
+
+# Database file
+*.db
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Precomputed ML files
+data/precomputed/*.pkl
+
+# IDE files
+.vscode/
+.idea/
