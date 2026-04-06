@@ -1,9 +1,9 @@
-import { useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { SearchX, Search } from 'lucide-react';
 import { motion } from 'framer-motion';
 import MovieGrid from '../components/MovieGrid';
-import { mockMovies } from '../data/mockData';
+import { searchMovies } from '../services/api';
 
 const fadeUp = {
   hidden: { opacity: 0, y: 20 },
@@ -14,14 +14,32 @@ export default function SearchResultsPage() {
   const [searchParams] = useSearchParams();
   const query = searchParams.get('q') ?? '';
 
-  const results = useMemo(() => {
-    if (!query.trim()) return [...mockMovies];
-    const q = query.toLowerCase();
-    return mockMovies.filter((m) => m.title.toLowerCase().includes(q));
+  const [movies, setMovies] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    const fetchResults = async () => {
+      if (!query.trim()) {
+        setMovies([]);
+        return;
+      }
+      try {
+        setIsLoading(true);
+        const data = await searchMovies(query);
+        setMovies(data.movies || []);
+      } catch (error) {
+        console.error('Search error:', error);
+        setMovies([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchResults();
   }, [query]);
 
   const hasQuery = query.trim().length > 0;
-  const hasResults = results.length > 0;
+  const hasResults = movies.length > 0;
 
   return (
     <div className="w-full min-h-screen">
@@ -42,22 +60,33 @@ export default function SearchResultsPage() {
           {!hasQuery && (
             <p className="text-gray-400 text-base mt-1 ml-8">Browse our full collection</p>
           )}
-          <p className="text-gray-500 text-sm mt-2 ml-8">
-            Found{' '}
-            <span className="text-gray-300 font-medium">{results.length}</span>{' '}
-            movie{results.length !== 1 ? 's' : ''}
-          </p>
+          {!isLoading && (
+            <p className="text-gray-500 text-sm mt-2 ml-8">
+              Found{' '}
+              <span className="text-gray-300 font-medium">{movies.length}</span>{' '}
+              movie{movies.length !== 1 ? 's' : ''}
+            </p>
+          )}
         </motion.div>
 
+        {/* Loading Skeleton */}
+        {isLoading && (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+            {Array.from({ length: 10 }).map((_, i) => (
+              <div key={i} className="aspect-[2/3] rounded-lg bg-dark-card animate-pulse" />
+            ))}
+          </div>
+        )}
+
         {/* Results */}
-        {hasResults && (
+        {!isLoading && hasResults && (
           <motion.div variants={fadeUp} initial="hidden" animate="visible">
-            <MovieGrid movies={results} />
+            <MovieGrid movies={movies} />
           </motion.div>
         )}
 
         {/* No Results */}
-        {!hasResults && hasQuery && (
+        {!isLoading && !hasResults && hasQuery && (
           <motion.div
             variants={fadeUp}
             initial="hidden"

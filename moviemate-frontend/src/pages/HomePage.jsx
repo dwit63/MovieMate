@@ -2,33 +2,58 @@ import { useNavigate, Link } from 'react-router-dom';
 import { Play, Bookmark } from 'lucide-react';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
+import { useState, useEffect } from 'react';
 import MovieCarousel from '../components/MovieCarousel';
 import MovieCard from '../components/MovieCard';
-import { mockMovies, mockTrendingMovies, mockRecommendations, mockWatchlist } from '../data/mockData';
+import { mockWatchlist } from '../data/mockData';
 import { MOOD_CONFIG } from '../utils/constants';
-import { addToWatchlist } from '../services/api';
-
-// Dune: Part Two is mockMovies[2] (id: 3)
-const FEATURED = mockMovies[2];
-
-// Flatten recommendations into a single movie list
-const recommendedMovies = mockRecommendations.flatMap((r) => r.movies)
-  .filter((m, i, arr) => arr.findIndex((x) => x.id === m.id) === i);
+import { getTrendingMovies, getTopRatedMovies, addToWatchlist } from '../services/api';
 
 const fadeUp = {
-  hidden: { opacity: 0, y: 28 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: 'easeOut' } },
+  hidden: { opacity: 0, y: 24 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.5 } },
 };
 
 export default function HomePage() {
   const navigate = useNavigate();
 
+  const [trendingMovies, setTrendingMovies] = useState([]);
+  const [topRatedMovies, setTopRatedMovies] = useState([]);
+  const [heroMovie, setHeroMovie] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setIsLoading(true);
+
+        const trendingData = await getTrendingMovies();
+        setTrendingMovies(trendingData.movies || []);
+
+        if (trendingData.movies && trendingData.movies.length > 0) {
+          setHeroMovie(trendingData.movies[0]);
+        }
+
+        const topRatedData = await getTopRatedMovies();
+        setTopRatedMovies(topRatedData.movies || []);
+
+      } catch (error) {
+        console.error('Error fetching home data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
   const handleAddToWatchlist = async () => {
+    if (!heroMovie) return;
     try {
-      await addToWatchlist(FEATURED.id);
-      toast.success(`"${FEATURED.title}" added to watchlist!`);
-    } catch {
-      toast.error('Failed to add to watchlist.');
+      await addToWatchlist(heroMovie.id);
+      toast.success('Added to watchlist!');
+    } catch (error) {
+      toast.error('Failed to add to watchlist');
     }
   };
 
@@ -41,51 +66,61 @@ export default function HomePage() {
           variants={fadeUp} initial="hidden" animate="visible"
           className="mb-12"
         >
-          <div className="relative overflow-hidden rounded-2xl min-h-[340px] md:min-h-[420px] flex items-end p-8 md:p-12"
-               style={{ aspectRatio: '21/9' }}>
-            {/* Backdrop */}
-            <div className="absolute inset-0 z-0">
-              <img
-                src={FEATURED.backdropUrl}
-                alt={FEATURED.title}
-                className="h-full w-full object-cover"
-              />
+          {heroMovie && (
+            <div
+              className="relative overflow-hidden rounded-2xl min-h-[340px] md:min-h-[420px] flex items-end p-8 md:p-12"
+              style={{
+                backgroundImage: `url(https://image.tmdb.org/t/p/original${heroMovie.backdrop_path})`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+                aspectRatio: '21/9',
+              }}
+            >
+              {/* Gradient overlay */}
               <div className="absolute inset-0 bg-gradient-to-t from-dark via-dark/50 to-transparent" />
-            </div>
 
-            {/* Content */}
-            <div className="relative z-10 max-w-2xl space-y-3">
-              <div className="flex flex-wrap gap-2 mb-2">
-                {FEATURED.genres.map((g) => (
-                  <span key={g} className="text-xs font-bold uppercase tracking-widest bg-white/10 backdrop-blur-sm px-2.5 py-1 rounded text-gray-300">
-                    {g}
-                  </span>
-                ))}
-              </div>
-              <h1 className="text-4xl md:text-6xl font-black tracking-tighter text-white uppercase">
-                {FEATURED.title}
-              </h1>
-              <p className="text-base md:text-lg text-gray-200 leading-relaxed line-clamp-2">
-                {FEATURED.overview}
-              </p>
-              <div className="flex flex-wrap gap-3 pt-2">
-                <button
-                  onClick={() => navigate(`/movie/${FEATURED.id}`)}
-                  className="flex items-center gap-2 bg-white text-black px-7 py-3 rounded-lg font-bold text-sm hover:opacity-90 active:scale-95 transition-all"
-                >
-                  <Play size={16} fill="black" />
-                  View Details
-                </button>
-                <button
-                  onClick={handleAddToWatchlist}
-                  className="flex items-center gap-2 bg-dark-card text-white border border-dark-border px-7 py-3 rounded-lg font-bold text-sm hover:bg-dark-hover transition-all active:scale-95"
-                >
-                  <Bookmark size={16} />
-                  Add to Watchlist
-                </button>
+              {/* Content */}
+              <div className="relative z-10 max-w-2xl space-y-3">
+                <div className="flex flex-wrap gap-2 mb-2">
+                  {heroMovie.genres?.map((g) => (
+                    <span
+                      key={g}
+                      className="text-xs font-bold uppercase tracking-widest bg-white/10 backdrop-blur-sm px-2.5 py-1 rounded text-gray-300"
+                    >
+                      {g}
+                    </span>
+                  ))}
+                </div>
+                <h1 className="text-4xl md:text-6xl font-black tracking-tighter text-white uppercase">
+                  {heroMovie.title}
+                </h1>
+                <p className="text-base md:text-lg text-gray-200 leading-relaxed line-clamp-2">
+                  {heroMovie.overview}
+                </p>
+                <div className="flex flex-wrap gap-3 pt-2">
+                  <button
+                    onClick={() => navigate(`/movie/${heroMovie.id}`)}
+                    className="flex items-center gap-2 bg-white text-black px-7 py-3 rounded-lg font-bold text-sm hover:opacity-90 active:scale-95 transition-all"
+                  >
+                    <Play size={16} fill="black" />
+                    View Details
+                  </button>
+                  <button
+                    onClick={handleAddToWatchlist}
+                    className="flex items-center gap-2 bg-dark-card text-white border border-dark-border px-7 py-3 rounded-lg font-bold text-sm hover:bg-dark-hover transition-all active:scale-95"
+                  >
+                    <Bookmark size={16} />
+                    Add to Watchlist
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
+          )}
+
+          {/* Loading skeleton for hero */}
+          {isLoading && !heroMovie && (
+            <div className="rounded-2xl min-h-[340px] md:min-h-[420px] bg-dark-card animate-pulse" />
+          )}
         </motion.section>
 
         {/* ── Mood Row ── */}
@@ -108,26 +143,26 @@ export default function HomePage() {
           </div>
         </motion.section>
 
-        {/* ── Recommended For You ── */}
-        <motion.div
-          variants={fadeUp} initial="hidden" whileInView="visible" viewport={{ once: true }}
-        >
-          <MovieCarousel
-            title="Recommended For You"
-            movies={recommendedMovies}
-            seeAllLink="/recommendations"
-            variant="default"
-          />
-        </motion.div>
-
         {/* ── Trending This Week ── */}
         <motion.div
           variants={fadeUp} initial="hidden" whileInView="visible" viewport={{ once: true }}
         >
           <MovieCarousel
             title="Trending This Week"
-            movies={mockTrendingMovies}
+            movies={trendingMovies}
             variant="trending"
+          />
+        </motion.div>
+
+        {/* ── Top Rated ── */}
+        <motion.div
+          variants={fadeUp} initial="hidden" whileInView="visible" viewport={{ once: true }}
+        >
+          <MovieCarousel
+            title="Top Rated"
+            movies={topRatedMovies}
+            seeAllLink="/explore"
+            variant="default"
           />
         </motion.div>
 
@@ -150,7 +185,12 @@ export default function HomePage() {
                 className="group relative aspect-[2/3] overflow-hidden rounded-lg border border-dark-border cursor-pointer"
               >
                 <img
-                  src={movie.posterUrl}
+                  src={
+                    movie.poster_path
+                      ? `https://image.tmdb.org/t/p/w500${movie.poster_path}`
+                      : movie.posterUrl
+                      || `https://placehold.co/200x300/1a1a1a/ffffff?text=${encodeURIComponent(movie.title)}`
+                  }
                   alt={movie.title}
                   className="h-full w-full object-cover grayscale group-hover:grayscale-0 transition-all duration-300 group-hover:scale-105"
                   onError={(e) => {

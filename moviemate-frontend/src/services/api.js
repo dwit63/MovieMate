@@ -110,31 +110,83 @@ export const updateProfile = async (updateData) => {
   return response.data;
 };
 
+/**
+ * Complete onboarding — save genre preferences + initial ratings.
+ */
+export const completeOnboarding = async (preferredGenres, ratings) => {
+  const response = await API.post('/auth/onboarding', {
+    preferred_genres: preferredGenres,
+    ratings: ratings
+  });
+  return response.data;
+};
+
 // ============================================================
 // MOVIE API CALLS (Phase 3 — placeholders for now)
 // ============================================================
 
-export const getMovies = async () => {
-  // Will be implemented in Phase 3
-  return [];
+/**
+ * Get trending movies this week.
+ * Used on: Home page hero + trending section
+ */
+export const getTrendingMovies = async (page = 1) => {
+  const response = await API.get('/movies/trending', { params: { page } });
+  return response.data;
 };
 
-export const getTrendingMovies = async () => {
-  return [];
+/**
+ * Get top rated movies.
+ * Used on: Home page top rated section
+ */
+export const getTopRatedMovies = async (page = 1) => {
+  const response = await API.get('/movies/top-rated', { params: { page } });
+  return response.data;
 };
 
-export const getTopRatedMovies = async () => {
-  return [];
+/**
+ * Get popular movies.
+ * Used on: Explore page default grid
+ */
+export const getPopularMovies = async (page = 1) => {
+  const response = await API.get('/movies/popular', { params: { page } });
+  return response.data;
 };
 
-export const searchMovies = async (query) => {
-  return [];
+/**
+ * Search movies by title.
+ * Used on: Search bar auto-suggest + Search Results page
+ */
+export const searchMovies = async (query, page = 1) => {
+  const response = await API.get('/movies/search', { params: { q: query, page } });
+  return response.data;
 };
 
+/**
+ * Get full details for a single movie.
+ * Used on: MovieDetail page
+ */
 export const getMovieById = async (id) => {
-  return null;
+  const response = await API.get(`/movies/${id}`);
+  return response.data;
 };
 
+/**
+ * Get list of all genres.
+ * Used on: Explore page filter sidebar + Onboarding page
+ */
+export const getGenres = async () => {
+  const response = await API.get('/movies/genres');
+  return response.data;
+};
+
+/**
+ * Discover movies with advanced filters.
+ * Used on: Explore page when filters are applied
+ */
+export const discoverMovies = async (filters = {}) => {
+  const response = await API.get('/movies/discover', { params: filters });
+  return response.data;
+};
 // ============================================================
 // RECOMMENDATION API CALLS (Phase 4 — placeholders)
 // ============================================================

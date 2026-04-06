@@ -7,6 +7,8 @@ import {
 import { useAuth } from '../context/AuthContext';
 import RatingStars from '../components/RatingStars';
 import { mockMovies } from '../data/mockData';
+import { completeOnboarding } from '../services/api';
+import toast from 'react-hot-toast';
 
 const GENRES = [
   { id: 'Action',    label: 'Action',    Icon: Zap },
@@ -33,6 +35,7 @@ export default function OnboardingPage() {
   const [selectedGenres, setSelectedGenres] = useState([]);
   const [ratings, setRatings] = useState({});
   const [moviePool, setMoviePool] = useState(() => shuffle(mockMovies).slice(0, POOL_SIZE));
+  const [isLoading, setIsLoading] = useState(false); // ← NEW
 
   const toggleGenre = useCallback((id) => {
     setSelectedGenres((prev) =>
@@ -44,9 +47,41 @@ export default function OnboardingPage() {
     setMoviePool(shuffle(mockMovies).slice(0, POOL_SIZE));
   };
 
-  const handleFinish = () => {
-    updateUser({ preferredGenres: selectedGenres, isOnboarded: true });
-    navigate('/home');
+  // ← REPLACED the old handleFinish with this new async version
+  const handleFinish = async () => {
+    if (selectedGenres.length < 3) {
+      toast.error('Please select at least 3 genres');
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      // Format ratings as [{movie_id, rating}, ...], skipping unrated movies
+      const formattedRatings = Object.entries(ratings)
+        .filter(([_, rating]) => rating > 0)
+        .map(([movieId, rating]) => ({
+          movie_id: parseInt(movieId),
+          rating: rating,
+        }));
+
+      // Call the backend API
+      await completeOnboarding(selectedGenres, formattedRatings);
+
+      // Update the user in AuthContext so the app knows onboarding is done
+      updateUser({
+        is_onboarded: true,
+        preferred_genres: JSON.stringify(selectedGenres),
+      });
+
+      toast.success('Setup complete!');
+      navigate('/home');
+    } catch (error) {
+      toast.error('Something went wrong. Please try again.');
+      console.error(error);
+    }
+
+    setIsLoading(false);
   };
 
   const canFinish = selectedGenres.length >= 3;
@@ -179,10 +214,10 @@ export default function OnboardingPage() {
             <button
               type="button"
               onClick={handleFinish}
-              disabled={!canFinish}
+              disabled={!canFinish || isLoading} // ← also disabled while loading
               className="bg-white text-black px-10 py-3 rounded-xl font-bold text-sm active:scale-95 transition-all shadow-lg disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              Finish Setup
+              {isLoading ? 'Saving...' : 'Finish Setup'} {/* ← shows loading text */}
             </button>
           </div>
         </div>

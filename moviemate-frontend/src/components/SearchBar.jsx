@@ -24,16 +24,18 @@ export default function SearchBar({ placeholder = 'Search movies...', compact = 
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
+
     if (!query.trim() || query.length < 2) {
       setSuggestions([]);
       setIsOpen(false);
       return;
     }
+
     debounceRef.current = setTimeout(async () => {
       setIsLoading(true);
       try {
         const data = await searchMovies(query);
-        setSuggestions(data.results.slice(0, 6));
+        setSuggestions(data.movies?.slice(0, 6) || []);  // ← was data.results
         setIsOpen(true);
       } catch {
         setSuggestions([]);
@@ -41,6 +43,7 @@ export default function SearchBar({ placeholder = 'Search movies...', compact = 
         setIsLoading(false);
       }
     }, 300);
+
     return () => clearTimeout(debounceRef.current);
   }, [query]);
 
@@ -82,30 +85,52 @@ export default function SearchBar({ placeholder = 'Search movies...', compact = 
 
       {isOpen && suggestions.length > 0 && (
         <div className="absolute top-full left-0 right-0 mt-2 bg-dark-card border border-dark-border rounded-xl overflow-hidden shadow-2xl z-50">
-          {suggestions.map((movie) => (
-            <button
-              key={movie.id}
-              onClick={() => handleSuggestionClick(movie)}
-              className="flex items-center gap-3 w-full px-3 py-2 hover:bg-dark-hover transition-colors text-left"
-            >
-              <img
-                src={movie.posterUrl}
-                alt={movie.title}
-                className="w-8 h-12 object-cover rounded flex-shrink-0"
-                onError={(e) => { e.target.src = 'https://placehold.co/32x48/252525/ffffff?text=N/A'; }}
-              />
-              <div className="min-w-0">
-                <p className="text-white text-sm font-medium truncate">{movie.title}</p>
-                <p className="text-gray-500 text-xs">{movie.year} · {movie.genres?.[0]}</p>
-              </div>
-            </button>
-          ))}
-          <button
-            onClick={handleSearch}
-            className="w-full px-3 py-2 text-center text-accent text-xs hover:bg-dark-hover transition-colors border-t border-dark-border"
-          >
-            See all results for "{query}"
-          </button>
+          {isLoading ? (
+            <div className="px-3 py-4 space-y-2">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="flex items-center gap-3">
+                  <div className="w-8 h-12 bg-dark-hover rounded animate-pulse flex-shrink-0" />
+                  <div className="flex-1 space-y-1.5">
+                    <div className="h-3 bg-dark-hover rounded animate-pulse w-3/4" />
+                    <div className="h-2.5 bg-dark-hover rounded animate-pulse w-1/2" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <>
+              {suggestions.map((movie) => (
+                <button
+                  key={movie.id}
+                  onClick={() => handleSuggestionClick(movie)}
+                  className="flex items-center gap-3 w-full px-3 py-2 hover:bg-dark-hover transition-colors text-left"
+                >
+                  <img
+                    src={
+                      movie.poster_path
+                        ? `https://image.tmdb.org/t/p/w92${movie.poster_path}`  // ← was movie.posterUrl
+                        : 'https://placehold.co/32x48/252525/ffffff?text=N/A'
+                    }
+                    alt={movie.title}
+                    className="w-8 h-12 object-cover rounded flex-shrink-0"
+                    onError={(e) => { e.target.src = 'https://placehold.co/32x48/252525/ffffff?text=N/A'; }}
+                  />
+                  <div className="min-w-0">
+                    <p className="text-white text-sm font-medium truncate">{movie.title}</p>
+                    <p className="text-gray-500 text-xs">
+                      {movie.release_date?.slice(0, 4)} · {movie.genres?.[0]}  {/* ← was movie.year */}
+                    </p>
+                  </div>
+                </button>
+              ))}
+              <button
+                onClick={handleSearch}
+                className="w-full px-3 py-2 text-center text-accent text-xs hover:bg-dark-hover transition-colors border-t border-dark-border"
+              >
+                See all results for "{query}"
+              </button>
+            </>
+          )}
         </div>
       )}
     </div>

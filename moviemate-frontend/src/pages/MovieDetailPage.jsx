@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
   Play, Plus, Check, Sparkles, Star, ChevronLeft, ChevronRight, CheckCircle,
@@ -8,8 +8,7 @@ import toast from 'react-hot-toast';
 import GenreTag from '../components/GenreTag';
 import RatingStars from '../components/RatingStars';
 import TrailerModal from '../components/TrailerModal';
-import { mockMovies } from '../data/mockData';
-import { addToWatchlist, removeFromWatchlist } from '../services/api';
+import { getMovieById, addToWatchlist, removeFromWatchlist } from '../services/api';
 
 const fadeUp = {
   hidden: { opacity: 0, y: 24 },
@@ -21,18 +20,12 @@ function formatRuntime(mins) {
   return `${Math.floor(mins / 60)}h ${mins % 60}m`;
 }
 
-function getSimilar(movie) {
-  return mockMovies
-    .filter((m) => m.id !== movie.id && m.genres.some((g) => movie.genres.includes(g)))
-    .slice(0, 8)
-    .map((m, i) => ({ ...m, matchPercent: Math.max(75, 95 - i * 3) }));
-}
-
 export default function MovieDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const movie = mockMovies.find((m) => m.id === Number(id));
 
+  const [movie, setMovie] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [inWatchlist, setInWatchlist] = useState(false);
   const [userRating, setUserRating] = useState(0);
   const [trailerOpen, setTrailerOpen] = useState(false);
@@ -42,7 +35,23 @@ export default function MovieDetailPage() {
     carouselRef.current?.scrollBy({ left: dir === 'left' ? -300 : 300, behavior: 'smooth' });
   };
 
-  const similar = useMemo(() => (movie ? getSimilar(movie) : []), [movie]);
+  useEffect(() => {
+    const fetchMovie = async () => {
+      try {
+        setIsLoading(true);
+        const data = await getMovieById(id);
+        setMovie(data);
+      } catch (error) {
+        console.error('Error fetching movie:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchMovie();
+    // Scroll to top when navigating to a new movie
+    window.scrollTo(0, 0);
+  }, [id]);
 
   const handleWatchlist = async () => {
     try {
@@ -59,8 +68,23 @@ export default function MovieDetailPage() {
     }
   };
 
+  // ── Loading State ──────────────────────────────────────────────────────────
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        {/* Backdrop skeleton */}
+        <div className="h-[85vh] min-h-[520px] w-full bg-dark-card animate-pulse" />
+        <div className="mx-auto w-full max-w-7xl px-6 py-12 lg:px-20 space-y-6">
+          <div className="h-8 w-64 bg-dark-card rounded animate-pulse" />
+          <div className="h-4 w-full bg-dark-card rounded animate-pulse" />
+          <div className="h-4 w-3/4 bg-dark-card rounded animate-pulse" />
+        </div>
+      </div>
+    );
+  }
+
   // ── Not Found ──────────────────────────────────────────────────────────────
-  if (!movie) {
+  if (!movie || movie.error) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-4 text-white">
         <p className="text-2xl font-bold">Movie not found.</p>
@@ -69,10 +93,20 @@ export default function MovieDetailPage() {
     );
   }
 
+  const backdropUrl = movie.backdrop_path
+    ? `https://image.tmdb.org/t/p/original${movie.backdrop_path}`
+    : `https://placehold.co/1200x600/1a1a1a/fff?text=${encodeURIComponent(movie.title)}`;
+
+  const posterUrl = movie.poster_path
+    ? `https://image.tmdb.org/t/p/w500${movie.poster_path}`
+    : `https://placehold.co/224x336/1a1a1a/fff?text=${encodeURIComponent(movie.title)}`;
+
+  const year = movie.release_date?.slice(0, 4) || '';
+
   return (
     <>
       <TrailerModal
-        trailerKey={movie.trailerKey}
+        trailerKey={movie.trailer_key}
         title={movie.title}
         isOpen={trailerOpen}
         onClose={() => setTrailerOpen(false)}
@@ -84,10 +118,12 @@ export default function MovieDetailPage() {
         <section className="relative h-[85vh] min-h-[520px] w-full">
           <div className="absolute inset-0 z-0">
             <img
-              src={movie.backdropUrl}
+              src={backdropUrl}
               alt={movie.title}
               className="h-full w-full object-cover"
-              onError={(e) => { e.target.src = `https://placehold.co/1200x600/1a1a1a/fff?text=${encodeURIComponent(movie.title)}`; }}
+              onError={(e) => {
+                e.target.src = `https://placehold.co/1200x600/1a1a1a/fff?text=${encodeURIComponent(movie.title)}`;
+              }}
             />
             <div className="absolute inset-0 bg-gradient-to-b from-transparent via-dark/60 to-dark" />
           </div>
@@ -100,35 +136,41 @@ export default function MovieDetailPage() {
               {/* Poster */}
               <div className="shrink-0">
                 <img
-                  src={movie.posterUrl}
+                  src={posterUrl}
                   alt={`${movie.title} poster`}
                   className="w-40 md:w-56 rounded-xl shadow-2xl border border-white/10"
-                  onError={(e) => { e.target.src = `https://placehold.co/224x336/1a1a1a/fff?text=${encodeURIComponent(movie.title)}`; }}
+                  onError={(e) => {
+                    e.target.src = `https://placehold.co/224x336/1a1a1a/fff?text=${encodeURIComponent(movie.title)}`;
+                  }}
                 />
               </div>
 
               {/* Info */}
               <div className="flex flex-col gap-4">
                 <div className="flex flex-wrap items-center gap-2">
-                  {movie.genres.map((g) => (
+                  {movie.genres?.map((g) => (
                     <GenreTag key={g} genre={g} size="sm" />
                   ))}
                   <span className="text-gray-400 text-sm font-medium">
-                    {movie.year}{movie.runtime ? ` • ${formatRuntime(movie.runtime)}` : ''}
+                    {year}{movie.runtime ? ` • ${formatRuntime(movie.runtime)}` : ''}
                   </span>
                 </div>
 
-                <h2 className="text-4xl md:text-6xl font-black text-white leading-tight">{movie.title}</h2>
+                <h2 className="text-4xl md:text-6xl font-black text-white leading-tight">
+                  {movie.title}
+                </h2>
 
                 {movie.tagline && (
-                  <p className="max-w-xl text-lg font-medium italic text-gray-400">{movie.tagline}</p>
+                  <p className="max-w-xl text-lg font-medium italic text-gray-400">
+                    {movie.tagline}
+                  </p>
                 )}
 
                 <div className="flex items-center gap-6 mt-1">
                   <div className="flex items-center gap-2">
                     <Star size={20} fill="#F59E0B" stroke="#F59E0B" />
                     <span className="text-xl font-bold text-white">
-                      {movie.rating}
+                      {movie.vote_average}
                       <span className="text-sm font-normal text-gray-400">/10</span>
                     </span>
                   </div>
@@ -145,7 +187,8 @@ export default function MovieDetailPage() {
                 <div className="flex flex-wrap gap-3 mt-2">
                   <button
                     onClick={() => setTrailerOpen(true)}
-                    className="flex items-center gap-2 bg-white text-black px-7 py-3 rounded-lg font-bold text-sm hover:opacity-90 active:scale-95 transition-all"
+                    disabled={!movie.trailer_key}
+                    className="flex items-center gap-2 bg-white text-black px-7 py-3 rounded-lg font-bold text-sm hover:opacity-90 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     <Play size={16} fill="black" />
                     Watch Trailer
@@ -175,7 +218,9 @@ export default function MovieDetailPage() {
             <div className="lg:col-span-2 space-y-12">
 
               {/* Overview */}
-              <motion.section variants={fadeUp} initial="hidden" whileInView="visible" viewport={{ once: true }}>
+              <motion.section
+                variants={fadeUp} initial="hidden" whileInView="visible" viewport={{ once: true }}
+              >
                 <h3 className="mb-4 text-2xl font-bold text-white">Overview</h3>
                 <p className="text-lg leading-relaxed text-gray-400">{movie.overview}</p>
                 {movie.director && (
@@ -188,26 +233,32 @@ export default function MovieDetailPage() {
 
               {/* Cast */}
               {movie.cast?.length > 0 && (
-                <motion.section variants={fadeUp} initial="hidden" whileInView="visible" viewport={{ once: true }}>
+                <motion.section
+                  variants={fadeUp} initial="hidden" whileInView="visible" viewport={{ once: true }}
+                >
                   <div className="mb-6 flex items-center justify-between">
                     <h3 className="text-2xl font-bold text-white">Top Cast</h3>
                   </div>
                   <div className="grid grid-cols-2 gap-5 sm:grid-cols-3">
-                    {movie.cast.map((member) => (
-                      <div key={member.name} className="flex items-center gap-3">
+                    {movie.cast.map((actor) => (
+                      <div key={actor.name} className="flex items-center gap-3">
                         <div className="h-14 w-14 shrink-0 overflow-hidden rounded-full border border-white/10 bg-dark-card">
                           <img
-                            src={member.photo}
-                            alt={member.name}
+                            src={
+                              actor.profile_path
+                                ? `https://image.tmdb.org/t/p/w185${actor.profile_path}`
+                                : `https://placehold.co/56x56/1a1a1a/fff?text=${encodeURIComponent(actor.name[0])}`
+                            }
+                            alt={actor.name}
                             className="h-full w-full object-cover"
                             onError={(e) => {
-                              e.target.src = `https://placehold.co/56x56/1a1a1a/fff?text=${encodeURIComponent(member.name[0])}`;
+                              e.target.src = `https://placehold.co/56x56/1a1a1a/fff?text=${encodeURIComponent(actor.name[0])}`;
                             }}
                           />
                         </div>
                         <div className="min-w-0">
-                          <p className="font-bold text-white text-sm truncate">{member.name}</p>
-                          <p className="text-xs text-gray-400 truncate">{member.character}</p>
+                          <p className="font-bold text-white text-sm truncate">{actor.name}</p>
+                          <p className="text-xs text-gray-400 truncate">{actor.character}</p>
                         </div>
                       </div>
                     ))}
@@ -255,7 +306,7 @@ export default function MovieDetailPage() {
           </div>
 
           {/* Similar Movies */}
-          {similar.length > 0 && (
+          {movie.similar_movies?.length > 0 && (
             <motion.section
               variants={fadeUp} initial="hidden" whileInView="visible" viewport={{ once: true }}
               className="mt-16"
@@ -279,22 +330,30 @@ export default function MovieDetailPage() {
               </div>
 
               <div ref={carouselRef} className="flex gap-5 overflow-x-auto pb-4 scrollbar-hide">
-                {similar.map((m) => (
-                  <div key={m.id} className="min-w-[160px] flex-shrink-0 group cursor-pointer"
-                       onClick={() => navigate(`/movie/${m.id}`)}>
+                {movie.similar_movies.map((m) => (
+                  <div
+                    key={m.id}
+                    className="min-w-[160px] flex-shrink-0 group cursor-pointer"
+                    onClick={() => navigate(`/movie/${m.id}`)}
+                  >
                     <div className="relative overflow-hidden rounded-xl border border-dark-border bg-dark-card mb-3 aspect-[2/3]">
                       <img
-                        src={m.posterUrl}
+                        src={
+                          m.poster_path
+                            ? `https://image.tmdb.org/t/p/w500${m.poster_path}`
+                            : `https://placehold.co/160x240/1a1a1a/fff?text=${encodeURIComponent(m.title)}`
+                        }
                         alt={m.title}
                         className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-110"
-                        onError={(e) => { e.target.src = `https://placehold.co/160x240/1a1a1a/fff?text=${encodeURIComponent(m.title)}`; }}
+                        onError={(e) => {
+                          e.target.src = `https://placehold.co/160x240/1a1a1a/fff?text=${encodeURIComponent(m.title)}`;
+                        }}
                       />
-                      <div className="absolute top-2 right-2 bg-green-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">
-                        {m.matchPercent}% Match
-                      </div>
                     </div>
                     <h5 className="font-bold text-white text-sm truncate">{m.title}</h5>
-                    <p className="text-xs text-gray-500 mt-0.5">{m.year} · {m.genres[0]}</p>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      {m.release_date?.slice(0, 4)} · {m.genres?.[0]}
+                    </p>
                     <button
                       onClick={(e) => { e.stopPropagation(); navigate(`/movie/${m.id}`); }}
                       className="mt-2 w-full rounded-md bg-white/5 py-1.5 text-xs font-bold text-white hover:bg-white/10 transition-colors"
