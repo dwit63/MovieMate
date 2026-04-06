@@ -25,6 +25,7 @@ from models import User, Rating, Watchlist, WatchHistory
 
 # Import routers
 from routers import auth
+from routers import movies
 
 # ============================================================
 # CREATE THE APP
@@ -70,7 +71,7 @@ Base.metadata.create_all(bind=engine)
 # We'll add more routers in later phases.
 
 app.include_router(auth.router)
-# app.include_router(movies.router)          # Phase 3
+app.include_router(movies.router)          # Phase 3
 # app.include_router(recommendations.router) # Phase 4
 # app.include_router(watchlist.router)        # Phase 5
 # app.include_router(ratings.router)          # Phase 5

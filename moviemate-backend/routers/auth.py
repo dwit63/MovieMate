@@ -1,22 +1,14 @@
 """
 routers/auth.py — Authentication API Endpoints
-
-This file defines the actual API URLs that the frontend calls:
-- POST /api/auth/signup → Create a new account
-- POST /api/auth/login  → Log into existing account
-- GET  /api/auth/me     → Get current user's info (requires token)
-- PUT  /api/auth/profile → Update user profile (requires token)
-
-WHAT IS A ROUTER?
-A router groups related endpoints together. All auth-related endpoints
-go in this file, all movie endpoints go in movies.py, etc.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
+import json
+from fastapi import APIRouter, Depends, HTTPException, status, Body
 from sqlalchemy.orm import Session
 
 from database import get_db
 from models.user import User
+from models.rating import Rating
 from schemas.user import UserCreate, UserLogin, UserResponse, UserUpdate, AuthResponse
 from services.auth_service import (
     hash_password,
@@ -25,27 +17,11 @@ from services.auth_service import (
     get_current_user,
 )
 
-# Create the router — all endpoints in this file will be prefixed with /api/auth
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 
 
 @router.post("/signup", response_model=AuthResponse)
 async def signup(user_data: UserCreate, db: Session = Depends(get_db)):
-    """
-    Create a new user account.
-
-    WHAT HAPPENS:
-    1. Frontend sends: {name, email, password}
-    2. We check if the email is already taken
-    3. We hash the password (NEVER store plain text!)
-    4. We save the new user to the database
-    5. We create a JWT token
-    6. We send back the token + user info
-
-    The frontend will store the token and use it for future requests.
-    """
-
-    # Step 1: Check if email already exists
     existing_user = db.query(User).filter(User.email == user_data.email).first()
     if existing_user:
         raise HTTPException(
@@ -53,23 +29,19 @@ async def signup(user_data: UserCreate, db: Session = Depends(get_db)):
             detail="An account with this email already exists."
         )
 
-    # Step 2: Hash the password
     hashed_pw = hash_password(user_data.password)
 
-    # Step 3: Create the user in the database
     new_user = User(
         name=user_data.name,
         email=user_data.email,
         hashed_password=hashed_pw,
     )
-    db.add(new_user)      # Stage the new user for insertion
-    db.commit()           # Actually write to the database
-    db.refresh(new_user)  # Reload the user to get the auto-generated ID
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
 
-    # Step 4: Create JWT token with user's ID
     token = create_access_token(data={"sub": str(new_user.id)})
 
-    # Step 5: Return the token and user info
     return AuthResponse(
         token=token,
         user=UserResponse.model_validate(new_user),
@@ -79,18 +51,6 @@ async def signup(user_data: UserCreate, db: Session = Depends(get_db)):
 
 @router.post("/login", response_model=AuthResponse)
 async def login(user_data: UserLogin, db: Session = Depends(get_db)):
-    """
-    Log into an existing account.
-
-    WHAT HAPPENS:
-    1. Frontend sends: {email, password}
-    2. We find the user by email
-    3. We verify the password against the stored hash
-    4. We create a JWT token
-    5. We send back the token + user info
-    """
-
-    # Step 1: Find user by email
     user = db.query(User).filter(User.email == user_data.email).first()
     if not user:
         raise HTTPException(
@@ -98,17 +58,14 @@ async def login(user_data: UserLogin, db: Session = Depends(get_db)):
             detail="Invalid email or password."
         )
 
-    # Step 2: Verify password
     if not verify_password(user_data.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password."
         )
 
-    # Step 3: Create JWT token
     token = create_access_token(data={"sub": str(user.id)})
 
-    # Step 4: Return token + user info
     return AuthResponse(
         token=token,
         user=UserResponse.model_validate(user),
@@ -118,17 +75,6 @@ async def login(user_data: UserLogin, db: Session = Depends(get_db)):
 
 @router.get("/me", response_model=UserResponse)
 async def get_me(current_user: User = Depends(get_current_user)):
-    """
-    Get the current logged-in user's info.
-
-    HOW IT WORKS:
-    - The frontend sends a request with the JWT token in the header
-    - get_current_user extracts the user from the token automatically
-    - We just return the user object
-
-    This endpoint is called when the app loads to check if the user
-    is still logged in (token still valid).
-    """
     return UserResponse.model_validate(current_user)
 
 
@@ -138,14 +84,6 @@ async def update_profile(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """
-    Update user profile.
-
-    Only updates the fields that are provided (not None).
-    If password is provided, it's hashed before storing.
-    """
-
-    # Update only the fields that were sent
     if update_data.name is not None:
         current_user.name = update_data.name
 
@@ -158,7 +96,56 @@ async def update_profile(
     if update_data.is_onboarded is not None:
         current_user.is_onboarded = update_data.is_onboarded
 
+    db.add(current_user)
     db.commit()
     db.refresh(current_user)
 
     return UserResponse.model_validate(current_user)
+
+
+@router.post("/onboarding")
+async def complete_onboarding(
+    onboarding_data: dict = Body(...),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    # Save preferred genres
+    genres = onboarding_data.get("preferred_genres", [])
+    current_user.preferred_genres = json.dumps(genres)
+    current_user.is_onboarded = True
+
+    # Force SQLAlchemy to track changes
+    db.add(current_user)
+
+    # Save initial movie ratings
+    ratings = onboarding_data.get("ratings", [])
+    for r in ratings:
+        existing = db.query(Rating).filter(
+            Rating.user_id == current_user.id,
+            Rating.movie_id == r["movie_id"]
+        ).first()
+
+        if existing:
+            existing.rating = r["rating"]
+        else:
+            new_rating = Rating(
+                user_id=current_user.id,
+                movie_id=r["movie_id"],
+                rating=r["rating"]
+            )
+            db.add(new_rating)
+
+    db.commit()
+    db.refresh(current_user)
+
+    return {
+        "message": "Onboarding completed successfully!",
+        "user": {
+            "id": current_user.id,
+            "name": current_user.name,
+            "email": current_user.email,
+            "preferred_genres": current_user.preferred_genres,
+            "is_onboarded": current_user.is_onboarded,
+            "created_at": str(current_user.created_at)
+        }
+    }
