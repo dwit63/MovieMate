@@ -56,13 +56,23 @@ class TMDBService:
         url = f"{self.base_url}{endpoint}"
 
         # httpx.AsyncClient is like a browser that sends requests
-        async with httpx.AsyncClient() as client:
+        # trust_env=True makes httpx respect system proxy settings (HTTP_PROXY, HTTPS_PROXY env vars)
+        async with httpx.AsyncClient(trust_env=True) as client:
             try:
-                response = await client.get(url, params=params, timeout=10.0)
+                response = await client.get(url, params=params, timeout=15.0)
                 response.raise_for_status()  # Raise error if status code is 4xx or 5xx
                 return response.json()
+            except httpx.TimeoutException:
+                print(f"TMDB API Timeout: Could not reach {url} within 15s. Check network/VPN.")
+                return {"results": [], "total_pages": 0, "total_results": 0}
+            except httpx.ConnectError as e:
+                print(f"TMDB API ConnectError: {type(e).__name__} - {e}")
+                return {"results": [], "total_pages": 0, "total_results": 0}
+            except httpx.HTTPStatusError as e:
+                print(f"TMDB API HTTP {e.response.status_code}: {e.response.text[:200]}")
+                return {"results": [], "total_pages": 0, "total_results": 0}
             except httpx.HTTPError as e:
-                print(f"TMDB API Error: {e}")
+                print(f"TMDB API Error: {type(e).__name__} - {e}")
                 return {"results": [], "total_pages": 0, "total_results": 0}
 
     # ============================================================
