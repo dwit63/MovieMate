@@ -1,11 +1,13 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, Navigate } from 'react-router-dom';
 import { Film, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 export default function SignupPage() {
   const navigate = useNavigate();
-  const { signup } = useAuth();
+  const { signup, isAuthenticated } = useAuth();
+
+  if (isAuthenticated) return <Navigate to="/home" replace />;
 
   const [form, setForm] = useState({ name: '', email: '', password: '', confirmPassword: '' });
   const [errors, setErrors] = useState({});
@@ -50,7 +52,7 @@ export default function SignupPage() {
     setLoading(false);
 
     if (result.success) {
-      navigate('/onboarding');
+      navigate('/onboarding', { replace: true });
     }
     // Error toast is shown automatically by AuthContext
   };
@@ -59,7 +61,7 @@ export default function SignupPage() {
     <div className="min-h-screen flex flex-col bg-dark text-white font-sans">
       {/* Header */}
       <header className="flex items-center border-b border-dark-border px-6 md:px-10 py-4 bg-dark">
-        <Link to="/" className="flex items-center gap-2">
+        <Link to="/home" className="flex items-center gap-2">
           <Film className="w-6 h-6 text-white" />
           <span className="text-white text-xl font-bold tracking-tight">MovieMate</span>
         </Link>

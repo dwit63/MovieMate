@@ -1,11 +1,15 @@
 import { useNavigate } from 'react-router-dom';
 import { Star, Plus, Check } from 'lucide-react';
-import { useState } from 'react';
 import GenreTag from './GenreTag';
+import { useWatchlist } from '../context/WatchlistContext';  // ← NEW
+import { useAuth } from '../context/AuthContext';            // ← NEW
 
 export default function MovieCard({ movie, variant = 'default' }) {
   const navigate = useNavigate();
-  const [inWatchlist, setInWatchlist] = useState(false);
+
+  // ── NEW: Replace local inWatchlist state with global context ──
+  const { isAuthenticated } = useAuth();
+  const { isInWatchlist, toggleWatchlist } = useWatchlist();
 
   if (!movie) return null;
 
@@ -23,10 +27,17 @@ export default function MovieCard({ movie, variant = 'default' }) {
   const year = movie.release_date?.slice(0, 4) || movie.year || '';
   const rating = movie.vote_average ?? movie.rating ?? 0;
 
+  // ── NEW: Derived from context instead of local state ──
+  const inWatchlist = isInWatchlist(movie.id);
+
   const handleClick = () => navigate(`/movie/${movie.id}`);
+
+  // ── NEW: Calls context toggleWatchlist instead of local setState ──
   const handleWatchlist = (e) => {
     e.stopPropagation();
-    setInWatchlist((prev) => !prev);
+    if (isAuthenticated) {
+      toggleWatchlist(movie.id);
+    }
   };
 
   // ── Watchlist variant ──────────────────────────────────────────────────────
@@ -83,6 +94,19 @@ export default function MovieCard({ movie, variant = 'default' }) {
           <h3 className="text-white font-semibold text-sm leading-tight">{movie.title}</h3>
           <p className="text-gray-400 text-xs mt-0.5">{year}</p>
         </div>
+        {/* ── NEW: Bookmark button on trending cards for logged-in users ── */}
+        {isAuthenticated && (
+          <button
+            onClick={handleWatchlist}
+            className="absolute top-2 right-2 bg-black/70 backdrop-blur-sm p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-accent"
+          >
+            {inWatchlist ? (
+              <Check size={13} className="text-white" />
+            ) : (
+              <Plus size={13} className="text-white" />
+            )}
+          </button>
+        )}
       </div>
     );
   }
@@ -104,16 +128,23 @@ export default function MovieCard({ movie, variant = 'default' }) {
           <Star size={11} fill="#F59E0B" stroke="#F59E0B" />
           <span className="text-star text-xs font-bold">{rating.toFixed(1)}</span>
         </div>
-        <button
-          onClick={handleWatchlist}
-          className="absolute top-2 right-2 bg-black/70 backdrop-blur-sm p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-accent"
-        >
-          {inWatchlist ? (
-            <Check size={13} className="text-white" />
-          ) : (
-            <Plus size={13} className="text-white" />
-          )}
-        </button>
+        {/* ── NEW: Only show bookmark button when user is logged in ── */}
+        {isAuthenticated && (
+          <button
+            onClick={handleWatchlist}
+            className={`absolute top-2 right-2 backdrop-blur-sm p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity
+              ${inWatchlist
+                ? 'bg-accent opacity-100'          
+                : 'bg-black/70 hover:bg-accent'    
+              }`}
+          >
+            {inWatchlist ? (
+              <Check size={13} className="text-white" />
+            ) : (
+              <Plus size={13} className="text-white" />
+            )}
+          </button>
+        )}
       </div>
       <div className="p-3">
         <h3 className="text-white font-semibold text-sm truncate group-hover:text-accent transition-colors">

@@ -1,5 +1,5 @@
 import { useAuth } from '../context/AuthContext';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, Navigate } from 'react-router-dom';
 import { useState } from 'react';
 import { Film, Eye, EyeOff, Chrome, Apple } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -7,7 +7,9 @@ import toast from 'react-hot-toast';
 
 export default function LoginPage() {
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, isAuthenticated } = useAuth();
+
+  if (isAuthenticated) return <Navigate to="/home" replace />;
 
   const [form, setForm] = useState({ email: '', password: '' });
   const [errors, setErrors] = useState({});
@@ -42,9 +44,9 @@ export default function LoginPage() {
 
     if (result.success) {
       if (!result.user.is_onboarded) {
-        navigate('/onboarding');
+        navigate('/onboarding', { replace: true });
       } else {
-        navigate('/home');
+        navigate('/home', { replace: true });
       }
     }
     // Error toast is shown automatically by AuthContext

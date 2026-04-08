@@ -8,7 +8,8 @@ import toast from 'react-hot-toast';
 import GenreTag from '../components/GenreTag';
 import RatingStars from '../components/RatingStars';
 import TrailerModal from '../components/TrailerModal';
-import { getMovieById, addToWatchlist, removeFromWatchlist } from '../services/api';
+import { getMovieById } from '../services/api';
+import { useWatchlist } from '../context/WatchlistContext';
 
 const fadeUp = {
   hidden: { opacity: 0, y: 24 },
@@ -24,10 +25,10 @@ export default function MovieDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
 
+  const { isInWatchlist, toggleWatchlist, getUserRating, submitRating } = useWatchlist();
+
   const [movie, setMovie] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [inWatchlist, setInWatchlist] = useState(false);
-  const [userRating, setUserRating] = useState(0);
   const [trailerOpen, setTrailerOpen] = useState(false);
 
   const carouselRef = useRef(null);
@@ -53,19 +54,11 @@ export default function MovieDetailPage() {
     window.scrollTo(0, 0);
   }, [id]);
 
-  const handleWatchlist = async () => {
-    try {
-      if (inWatchlist) {
-        await removeFromWatchlist(movie.id);
-        toast('Removed from watchlist');
-      } else {
-        await addToWatchlist(movie.id);
-        toast.success(`"${movie.title}" added to watchlist!`);
-      }
-      setInWatchlist((v) => !v);
-    } catch {
-      toast.error('Something went wrong.');
-    }
+  const inWatchlist = movie ? isInWatchlist(movie.id) : false;
+  const userRating = movie ? (getUserRating(movie.id) ?? 0) : 0;
+
+  const handleWatchlist = () => {
+    if (movie) toggleWatchlist(movie.id);
   };
 
   // ── Loading State ──────────────────────────────────────────────────────────
@@ -179,7 +172,7 @@ export default function MovieDetailPage() {
                     <RatingStars
                       rating={userRating}
                       size="md"
-                      onRate={setUserRating}
+                      onRate={(r) => submitRating(movie.id, r)}
                     />
                   </div>
                 </div>

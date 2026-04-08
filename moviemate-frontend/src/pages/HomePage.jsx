@@ -1,13 +1,12 @@
 import { useNavigate, Link } from 'react-router-dom';
-import { Play, Bookmark } from 'lucide-react';
+import { Play, Bookmark, Check } from 'lucide-react';  // ← NEW: Check added
 import { motion } from 'framer-motion';
-import toast from 'react-hot-toast';
 import { useState, useEffect } from 'react';
 import MovieCarousel from '../components/MovieCarousel';
-import MovieCard from '../components/MovieCard';
-import { mockWatchlist } from '../data/mockData';
 import { MOOD_CONFIG } from '../utils/constants';
-import { getTrendingMovies, getTopRatedMovies, addToWatchlist } from '../services/api';
+import { getTrendingMovies, getTopRatedMovies, getWatchlist } from '../services/api';  // ← NEW: getWatchlist, removed addToWatchlist
+import { useWatchlist } from '../context/WatchlistContext';  // ← NEW
+import { useAuth } from '../context/AuthContext';            // ← NEW
 
 const fadeUp = {
   hidden: { opacity: 0, y: 24 },
@@ -21,6 +20,13 @@ export default function HomePage() {
   const [topRatedMovies, setTopRatedMovies] = useState([]);
   const [heroMovie, setHeroMovie] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  // ── NEW: Real watchlist section state ──
+  const [watchlistMovies, setWatchlistMovies] = useState([]);
+
+  // ── NEW: Replace local handleAddToWatchlist with context ──
+  const { isAuthenticated } = useAuth();
+  const { isInWatchlist, toggleWatchlist } = useWatchlist();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -47,15 +53,25 @@ export default function HomePage() {
     fetchData();
   }, []);
 
-  const handleAddToWatchlist = async () => {
-    if (!heroMovie) return;
-    try {
-      await addToWatchlist(heroMovie.id);
-      toast.success('Added to watchlist!');
-    } catch (error) {
-      toast.error('Failed to add to watchlist');
+  // ── NEW: Fetch real watchlist separately (only when logged in) ──
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setWatchlistMovies([]);
+      return;
     }
-  };
+    const fetchWatchlist = async () => {
+      try {
+        const data = await getWatchlist();
+        setWatchlistMovies(data.movies?.slice(0, 6) || []);
+      } catch (error) {
+        console.error('Error fetching watchlist:', error);
+      }
+    };
+    fetchWatchlist();
+  }, [isAuthenticated]);
+
+  // ── NEW: Derived from context — no local state needed ──
+  const heroInWatchlist = heroMovie ? isInWatchlist(heroMovie.id) : false;
 
   return (
     <div className="w-full">
@@ -105,13 +121,23 @@ export default function HomePage() {
                     <Play size={16} fill="black" />
                     View Details
                   </button>
-                  <button
-                    onClick={handleAddToWatchlist}
-                    className="flex items-center gap-2 bg-dark-card text-white border border-dark-border px-7 py-3 rounded-lg font-bold text-sm hover:bg-dark-hover transition-all active:scale-95"
-                  >
-                    <Bookmark size={16} />
-                    Add to Watchlist
-                  </button>
+                  {/* ── NEW: Uses context toggleWatchlist, shows real state ── */}
+                  {isAuthenticated && (
+                    <button
+                      onClick={() => toggleWatchlist(heroMovie.id)}
+                      className={`flex items-center gap-2 px-7 py-3 rounded-lg font-bold text-sm border active:scale-95 transition-all
+                        ${heroInWatchlist
+                          ? 'bg-accent/10 border-accent text-accent'
+                          : 'bg-dark-card text-white border-dark-border hover:bg-dark-hover'
+                        }`}
+                    >
+                      {heroInWatchlist ? (
+                        <><Check size={16} /> In Watchlist</>
+                      ) : (
+                        <><Bookmark size={16} /> Add to Watchlist</>
+                      )}
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -167,46 +193,48 @@ export default function HomePage() {
         </motion.div>
 
         {/* ── From Your Watchlist ── */}
-        <motion.section
-          variants={fadeUp} initial="hidden" whileInView="visible" viewport={{ once: true }}
-          className="mb-12"
-        >
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-white text-xl font-bold">From Your Watchlist</h2>
-            <Link to="/watchlist" className="text-accent text-sm font-bold hover:text-accent-hover transition-colors">
-              See All
-            </Link>
-          </div>
-          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
-            {mockWatchlist.slice(0, 6).map((movie) => (
-              <div
-                key={movie.id}
-                onClick={() => navigate(`/movie/${movie.id}`)}
-                className="group relative aspect-[2/3] overflow-hidden rounded-lg border border-dark-border cursor-pointer"
-              >
-                <img
-                  src={
-                    movie.poster_path
-                      ? `https://image.tmdb.org/t/p/w500${movie.poster_path}`
-                      : movie.posterUrl
-                      || `https://placehold.co/200x300/1a1a1a/ffffff?text=${encodeURIComponent(movie.title)}`
-                  }
-                  alt={movie.title}
-                  className="h-full w-full object-cover grayscale group-hover:grayscale-0 transition-all duration-300 group-hover:scale-105"
-                  onError={(e) => {
-                    e.target.src = `https://placehold.co/200x300/1a1a1a/ffffff?text=${encodeURIComponent(movie.title)}`;
-                  }}
-                />
-                <div className="absolute inset-0 bg-black/20 group-hover:bg-transparent transition-colors" />
-                <div className="absolute inset-0 flex items-end p-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <p className="text-white text-xs font-semibold line-clamp-2 leading-tight drop-shadow">
-                    {movie.title}
-                  </p>
+        {/* ── NEW: Only show section when logged in and watchlist has movies ── */}
+        {isAuthenticated && watchlistMovies.length > 0 && (
+          <motion.section
+            variants={fadeUp} initial="hidden" whileInView="visible" viewport={{ once: true }}
+            className="mb-12"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-white text-xl font-bold">From Your Watchlist</h2>
+              <Link to="/watchlist" className="text-accent text-sm font-bold hover:text-accent-hover transition-colors">
+                See All
+              </Link>
+            </div>
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
+              {watchlistMovies.map((movie) => (
+                <div
+                  key={movie.id}
+                  onClick={() => navigate(`/movie/${movie.id}`)}
+                  className="group relative aspect-[2/3] overflow-hidden rounded-lg border border-dark-border cursor-pointer"
+                >
+                  <img
+                    src={
+                      movie.poster_path
+                        ? `https://image.tmdb.org/t/p/w500${movie.poster_path}`
+                        : `https://placehold.co/200x300/1a1a1a/ffffff?text=${encodeURIComponent(movie.title)}`
+                    }
+                    alt={movie.title}
+                    className="h-full w-full object-cover grayscale group-hover:grayscale-0 transition-all duration-300 group-hover:scale-105"
+                    onError={(e) => {
+                      e.target.src = `https://placehold.co/200x300/1a1a1a/ffffff?text=${encodeURIComponent(movie.title)}`;
+                    }}
+                  />
+                  <div className="absolute inset-0 bg-black/20 group-hover:bg-transparent transition-colors" />
+                  <div className="absolute inset-0 flex items-end p-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <p className="text-white text-xs font-semibold line-clamp-2 leading-tight drop-shadow">
+                      {movie.title}
+                    </p>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        </motion.section>
+              ))}
+            </div>
+          </motion.section>
+        )}
 
       </main>
     </div>

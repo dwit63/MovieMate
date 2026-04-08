@@ -212,28 +212,108 @@ export const getHiddenGems = async () => {
 // ============================================================
 
 export const getWatchlist = async () => {
-  return [];
+  const response = await API.get('/watchlist');
+  return response.data;
 };
 
+/**
+ * Get just the movie IDs in watchlist (fast check).
+ * Used on: App load — to know which movies show "✓ In Watchlist"
+ */
+export const getWatchlistIds = async () => {
+  const response = await API.get('/watchlist/ids');
+  return response.data;
+};
+
+/**
+ * Add a movie to watchlist.
+ * Used on: "Add to Watchlist" buttons everywhere
+ */
 export const addToWatchlist = async (movieId) => {
-  return {};
+  const response = await API.post('/watchlist', { movie_id: movieId });
+  return response.data;
 };
 
+/**
+ * Remove a movie from watchlist.
+ * Used on: Trash icon on Watchlist page, toggle off bookmark
+ */
 export const removeFromWatchlist = async (movieId) => {
-  return {};
+  const response = await API.delete(`/watchlist/${movieId}`);
+  return response.data;
+};
+
+/**
+ * Mark a movie as watched (removes from watchlist, adds to history).
+ * Used on: "Watched" button on Watchlist page
+ */
+export const markAsWatched = async (movieId) => {
+  const response = await API.post('/watchlist/watched', { movie_id: movieId });
+  return response.data;
+};
+
+/**
+ * Get watch history.
+ * Used on: Profile page stats
+ */
+export const getWatchHistory = async () => {
+  const response = await API.get('/watchlist/history');
+  return response.data;
 };
 
 // ============================================================
-// RATING API CALLS (Phase 5 — placeholders)
+// RATING API CALLS
 // ============================================================
 
+/**
+ * Rate a movie (1-5 stars). Creates or updates.
+ * Used on: RatingStars component everywhere
+ */
 export const rateMovie = async (movieId, rating) => {
-  return {};
+  const response = await API.post('/ratings', { movie_id: movieId, rating: rating });
+  return response.data;
 };
 
+/**
+ * Get all ratings with movie details.
+ * Used on: Profile page "Recently Rated" section
+ */
 export const getUserRatings = async () => {
-  return [];
+  const response = await API.get('/ratings');
+  return response.data;
 };
 
-// Export the axios instance if needed elsewhere
-export default API;
+/**
+ * Get just movie IDs + ratings (fast lookup).
+ * Used on: App load — to show user's ratings on any MovieCard
+ */
+export const getUserRatingIds = async () => {
+  const response = await API.get('/ratings/ids');
+  return response.data;
+};
+
+/**
+ * Get rating stats (total, average, highest, lowest).
+ * Used on: Profile page Activity Overview
+ */
+export const getRatingStats = async () => {
+  const response = await API.get('/ratings/stats');
+  return response.data;
+};
+
+/**
+ * Get user's rating for a specific movie.
+ * Used on: MovieDetail page — show filled stars
+ */
+export const getMovieRating = async (movieId) => {
+  const response = await API.get(`/ratings/${movieId}`);
+  return response.data;
+};
+
+/**
+ * Delete a rating.
+ */
+export const deleteRating = async (movieId) => {
+  const response = await API.delete(`/ratings/${movieId}`);
+  return response.data;
+};

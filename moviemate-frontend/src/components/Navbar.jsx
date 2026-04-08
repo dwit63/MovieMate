@@ -4,9 +4,10 @@ import { Film, Bell, LogOut, User, Compass, Smile, Bookmark, Menu, X } from 'luc
 import { useAuth } from '../context/AuthContext';
 import SearchBar from './SearchBar';
 
-function Logo() {
+// ── NEW: Link to /home when logged in, / when guest ──
+function Logo({ authenticated }) {
   return (
-    <Link to="/" className="flex items-center gap-2 flex-shrink-0">
+    <Link to={authenticated ? '/home' : '/'} className="flex items-center gap-2 flex-shrink-0">
       <div className="p-1.5 bg-accent rounded-lg">
         <Film size={18} className="text-white" />
       </div>
@@ -30,14 +31,14 @@ export default function Navbar() {
   const handleLogout = () => {
     logout();
     closeMobile();
-    navigate('/');
+    navigate('/', { replace: true }); // ← replace so back button doesn't return to protected page
   };
 
   if (!isAuthenticated) {
     return (
       <nav className="fixed top-0 left-0 right-0 z-40 bg-dark/80 backdrop-blur-md border-b border-dark-border">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between h-16">
-          <Logo />
+          <Logo authenticated={false} />
           <div className="flex items-center gap-3">
             <Link
               to="/login"
@@ -61,7 +62,7 @@ export default function Navbar() {
     <nav className="sticky top-0 z-40 bg-dark-secondary/95 backdrop-blur-md border-b border-dark-border">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between h-16 gap-4">
         <div className="flex items-center gap-6">
-          <Logo />
+          <Logo authenticated={true} />
           <div className="hidden md:flex items-center gap-1">
             <NavLink to="/explore" className={navLinkClass}>
               <Compass size={16} />
@@ -118,7 +119,6 @@ export default function Navbar() {
             </div>
           </div>
 
-          {/* Mobile hamburger */}
           <button
             onClick={() => setMobileOpen((v) => !v)}
             className="md:hidden p-2 rounded-full hover:bg-dark-hover transition-colors text-gray-400 hover:text-white"
@@ -129,7 +129,6 @@ export default function Navbar() {
         </div>
       </div>
 
-      {/* Mobile dropdown */}
       {mobileOpen && (
         <div className="md:hidden border-t border-dark-border bg-dark-secondary/98 px-4 py-3 flex flex-col gap-1">
           <NavLink to="/explore" className={navLinkClass} onClick={closeMobile}>

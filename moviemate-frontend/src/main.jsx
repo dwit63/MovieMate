@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './context/AuthContext';
+import { WatchlistProvider } from './context/WatchlistContext';
 import App from './App';
 import './index.css';
 
@@ -10,30 +11,52 @@ ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <BrowserRouter>
       <AuthProvider>
-        <App />
-        <Toaster
-          position="top-right"
-          toastOptions={{
-            duration: 3000,
-            style: {
-              background: '#1A1A1A',
-              color: '#FFFFFF',
-              border: '1px solid #252525',
-            },
-            success: {
-              iconTheme: {
-                primary: '#10B981',
-                secondary: '#FFFFFF',
+        <WatchlistProvider>
+          <App />
+          {/* Single Toaster here — removed from App.jsx */}
+          <Toaster
+            position="bottom-right"
+            toastOptions={{
+              duration: 3000,
+              style: {
+                background: '#1A1A1A',
+                color: '#ffffff',
+                border: '1px solid #252525',
+                borderRadius: '12px',
+                padding: '12px 16px',
+                fontSize: '14px',
+                boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
+                maxWidth: '360px',
               },
-            },
-            error: {
-              iconTheme: {
-                primary: '#EF4444',
-                secondary: '#FFFFFF',
+              success: {
+                iconTheme: { primary: '#22c55e', secondary: '#1A1A1A' },
+                style: {
+                  background: '#1A1A1A',
+                  color: '#ffffff',
+                  border: '1px solid #22c55e33',
+                  borderRadius: '12px',
+                  padding: '12px 16px',
+                  fontSize: '14px',
+                  boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
+                  maxWidth: '360px',
+                },
               },
-            },
-          }}
-        />
+              error: {
+                iconTheme: { primary: '#ef4444', secondary: '#1A1A1A' },
+                style: {
+                  background: '#1A1A1A',
+                  color: '#ffffff',
+                  border: '1px solid #ef444433',
+                  borderRadius: '12px',
+                  padding: '12px 16px',
+                  fontSize: '14px',
+                  boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
+                  maxWidth: '360px',
+                },
+              },
+            }}
+          />
+        </WatchlistProvider>
       </AuthProvider>
     </BrowserRouter>
   </React.StrictMode>
