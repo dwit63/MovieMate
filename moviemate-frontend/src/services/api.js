@@ -188,23 +188,74 @@ export const discoverMovies = async (filters = {}) => {
   return response.data;
 };
 // ============================================================
-// RECOMMENDATION API CALLS (Phase 4 — placeholders)
+// RECOMMENDATION API CALLS
 // ============================================================
 
-export const getRecommendations = async () => {
-  return [];
+/**
+ * Get all available moods.
+ * Used on: Mood page grid, Home page mood pills.
+ */
+export const getMoods = async () => {
+  const response = await API.get('/recommend/moods');
+  return response.data;
 };
 
-export const getSimilarMovies = async (movieId) => {
-  return [];
+/**
+ * Get movie recommendations for a specific mood.
+ * Used on: Mood page results after clicking a mood.
+ */
+export const getMoodMovies = async (mood, page = 1) => {
+  const response = await API.get(`/recommend/mood/${mood}`, { params: { page } });
+  return response.data;
 };
 
-export const getMoodMovies = async (mood) => {
-  return [];
+/**
+ * Get personalized recommendations based on user's rating history.
+ * Used on: Home page "Recommended For You", Recommendations page.
+ */
+export const getRecommendations = async (page = 1) => {
+  const response = await API.get('/recommend/personalized', { params: { page } });
+  return response.data;
 };
 
-export const getHiddenGems = async () => {
-  return [];
+/**
+ * Get top movies from user's favorite genres.
+ * Used on: Recommendations page "Genres You Love" section.
+ */
+export const getGenresYouLove = async () => {
+  const response = await API.get('/recommend/genres-you-love');
+  return response.data;
+};
+
+/**
+ * Get hidden gem movies (high quality, less popular).
+ * Used on: Recommendations page "Hidden Gems" section.
+ */
+export const getHiddenGems = async (page = 1) => {
+  const response = await API.get('/recommend/hidden-gems', { params: { page } });
+  return response.data;
+};
+
+// ============================================================
+// PROFILE API CALLS
+// ============================================================
+
+/**
+ * Get full user profile with stats, genre distribution, recent ratings.
+ * Used on: Profile page.
+ */
+export const getUserProfile = async () => {
+  const response = await API.get('/profile');
+  return response.data;
+};
+
+/**
+ * Get just the activity stats (lighter endpoint).
+ * Used on: Quick stats display.
+ */
+export const getProfileStats = async () => {
+  const response = await API.get('/profile/stats');
+  return response.data;
 };
 
 // ============================================================

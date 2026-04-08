@@ -1,20 +1,14 @@
-import { useState, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import {
   Pencil, BarChart3, Star, Settings, SlidersHorizontal,
-  Share2, Trash2, Plus, Film,
+  Share2, Trash2, Plus,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
-import { mockUserProfile, mockRatings, mockMovies } from '../data/mockData';
-
-const GENRE_BARS = [
-  { label: 'SCI-FI',  pct: 85, color: 'bg-accent' },
-  { label: 'ACTION',  pct: 65, color: 'bg-gray-500' },
-  { label: 'DRAMA',   pct: 45, color: 'bg-gray-600' },
-  { label: 'COMEDY',  pct: 30, color: 'bg-gray-700' },
-];
+import LoadingSpinner from '../components/LoadingSpinner';
+import { getUserProfile, updateProfile } from '../services/api';
 
 const fadeUp = {
   hidden: { opacity: 0, y: 20 },
@@ -28,26 +22,50 @@ export default function ProfilePage() {
   const navigate = useNavigate();
   const { logout, updateUser } = useAuth();
 
-  const [name, setName] = useState(mockUserProfile.name);
-  const [password, setPassword] = useState('');
+  const [profileData, setProfileData] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [editName, setEditName] = useState('');
+  const [editPassword, setEditPassword] = useState('');
 
-  // Join last 3 ratings with movie data
-  const recentRatings = useMemo(() => {
-    return [...mockRatings]
-      .sort((a, b) => new Date(b.date) - new Date(a.date))
-      .slice(0, 3)
-      .map((r) => {
-        const movie = mockMovies.find((m) => m.id === r.movieId);
-        return movie ? { ...r, movie } : null;
-      })
-      .filter(Boolean);
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        setIsLoading(true);
+        const data = await getUserProfile();
+        setProfileData(data);
+        setEditName(data.user?.name || '');
+      } catch (error) {
+        console.error('Error fetching profile:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchProfile();
   }, []);
 
-  const handleUpdateProfile = (e) => {
+  const handleUpdateProfile = async (e) => {
     e.preventDefault();
-    updateUser({ name });
-    toast.success('Profile updated!');
-    setPassword('');
+    const updateData = {};
+    if (editName && editName !== profileData?.user?.name) {
+      updateData.name = editName;
+    }
+    if (editPassword && editPassword.length >= 8) {
+      updateData.password = editPassword;
+    }
+
+    if (Object.keys(updateData).length === 0) {
+      toast.error('No changes to save');
+      return;
+    }
+
+    try {
+      await updateProfile(updateData);
+      updateUser(updateData);
+      setEditPassword('');
+      toast.success('Profile updated!');
+    } catch {
+      toast.error('Failed to update profile');
+    }
   };
 
   const handleDeleteAccount = () => {
@@ -60,12 +78,19 @@ export default function ProfilePage() {
     }
   };
 
-  const formatDate = (iso) => {
-    const d = new Date(iso);
-    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-  };
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <LoadingSpinner size="lg" text="Loading profile..." />
+      </div>
+    );
+  }
 
-  const { stats } = mockUserProfile;
+  const { user, stats, genre_distribution, recent_ratings } = profileData || {};
+
+  const memberSince = user?.member_since
+    ? new Date(user.member_since).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+    : '';
 
   return (
     <div className="w-full min-h-screen">
@@ -80,19 +105,12 @@ export default function ProfilePage() {
               variants={fadeUp} initial="hidden" animate="visible" custom={0}
               className="flex flex-col md:flex-row items-center md:items-end gap-6 bg-dark-card border border-dark-border rounded-2xl p-8"
             >
-              {/* Avatar */}
+              {/* Avatar — initials fallback */}
               <div className="relative shrink-0">
-                <div className="w-28 h-28 rounded-full ring-4 ring-accent/20 overflow-hidden bg-dark-secondary">
-                  <img
-                    src={mockUserProfile.avatar}
-                    alt={mockUserProfile.name}
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      e.target.src = `https://placehold.co/150x150/1a1a1a/ffffff?text=${
-                        mockUserProfile.name.slice(0, 2).toUpperCase()
-                      }`;
-                    }}
-                  />
+                <div className="w-28 h-28 rounded-full ring-4 ring-accent/20 overflow-hidden bg-dark-secondary flex items-center justify-center">
+                  <span className="text-white text-3xl font-black">
+                    {user?.name?.slice(0, 2).toUpperCase() || '??'}
+                  </span>
                 </div>
                 <button
                   className="absolute bottom-0 right-0 p-1.5 bg-accent hover:bg-accent-hover text-white rounded-full shadow-lg transition-colors"
@@ -104,9 +122,9 @@ export default function ProfilePage() {
 
               {/* Info */}
               <div className="text-center md:text-left flex-1 min-w-0">
-                <h2 className="text-2xl font-bold text-white truncate">{mockUserProfile.name}</h2>
-                <p className="text-gray-400 text-sm mt-0.5">{mockUserProfile.email}</p>
-                <p className="text-gray-500 text-xs mt-1">Member since {mockUserProfile.memberSince}</p>
+                <h2 className="text-2xl font-bold text-white truncate">{user?.name}</h2>
+                <p className="text-gray-400 text-sm mt-0.5">{user?.email}</p>
+                <p className="text-gray-500 text-xs mt-1">Member since {memberSince}</p>
               </div>
 
               {/* Actions */}
@@ -136,11 +154,11 @@ export default function ProfilePage() {
               {/* Stat boxes */}
               <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
                 {[
-                  { label: 'Rated',      value: stats.rated },
-                  { label: 'Avg Rating', value: stats.avgRating },
-                  { label: 'Top Genre',  value: stats.topGenre, accent: true },
-                  { label: 'Watchlist',  value: stats.watchlist },
-                  { label: 'Watched',    value: stats.watched },
+                  { label: 'Rated',      value: stats?.total_rated ?? 0 },
+                  { label: 'Avg Rating', value: stats?.average_rating ?? 0 },
+                  { label: 'Top Genre',  value: stats?.top_genre ?? 'N/A', accent: true },
+                  { label: 'Watchlist',  value: stats?.total_watchlist ?? 0 },
+                  { label: 'Watched',    value: stats?.total_watched ?? 0 },
                 ].map(({ label, value, accent }) => (
                   <div
                     key={label}
@@ -159,20 +177,26 @@ export default function ProfilePage() {
                 <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4">
                   Genre Distribution
                 </p>
-                <div className="space-y-3.5">
-                  {GENRE_BARS.map(({ label, pct, color }) => (
-                    <div key={label} className="flex items-center gap-3">
-                      <span className="text-xs font-bold text-gray-500 w-14 shrink-0">{label}</span>
-                      <div className="flex-1 bg-dark h-2.5 rounded-full overflow-hidden">
-                        <div
-                          className={`${color} h-full rounded-full`}
-                          style={{ width: `${pct}%` }}
-                        />
+                {genre_distribution && genre_distribution.length > 0 ? (
+                  <div className="space-y-3.5">
+                    {genre_distribution.map(({ genre, percentage }, i) => (
+                      <div key={genre} className="flex items-center gap-3">
+                        <span className="text-xs font-bold text-gray-500 w-20 shrink-0 truncate uppercase">
+                          {genre}
+                        </span>
+                        <div className="flex-1 bg-dark h-2.5 rounded-full overflow-hidden">
+                          <div
+                            className={`h-full rounded-full ${i === 0 ? 'bg-accent' : 'bg-gray-600'}`}
+                            style={{ width: `${percentage}%` }}
+                          />
+                        </div>
+                        <span className="text-xs font-bold text-gray-400 w-8 text-right">{percentage}%</span>
                       </div>
-                      <span className="text-xs font-bold text-gray-400 w-8 text-right">{pct}%</span>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-gray-500 text-sm">Rate some movies to see your genre distribution.</p>
+                )}
               </div>
             </motion.section>
 
@@ -183,37 +207,46 @@ export default function ProfilePage() {
             >
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-base font-semibold text-white">Recently Rated</h3>
-                <button className="text-sm text-accent hover:underline font-medium">View All</button>
               </div>
 
-              <div className="space-y-3">
-                {recentRatings.map(({ movieId, rating, date, movie }) => (
-                  <button
-                    key={movieId}
-                    onClick={() => navigate(`/movie/${movieId}`)}
-                    className="flex items-center gap-4 w-full p-3 bg-dark border border-dark-border hover:border-dark-hover rounded-xl transition-colors text-left"
-                  >
-                    <div className="w-10 h-14 rounded overflow-hidden shrink-0 bg-dark-secondary">
-                      <img
-                        src={movie.posterUrl}
-                        alt={movie.title}
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          e.target.src = `https://placehold.co/40x56/252525/ffffff?text=${encodeURIComponent(movie.title.slice(0, 2))}`;
-                        }}
-                      />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-bold text-white text-sm leading-tight truncate">{movie.title}</p>
-                      <p className="text-xs text-gray-500 mt-0.5">Rated on {formatDate(date)}</p>
-                    </div>
-                    <div className="flex items-center gap-1 text-star shrink-0">
-                      <Star size={14} fill="currentColor" />
-                      <span className="font-bold text-sm text-white">{rating.toFixed(1)}</span>
-                    </div>
-                  </button>
-                ))}
-              </div>
+              {recent_ratings && recent_ratings.length > 0 ? (
+                <div className="space-y-3">
+                  {recent_ratings.map(({ movie_id, rating, rated_at, title, poster_path }) => (
+                    <button
+                      key={movie_id}
+                      onClick={() => navigate(`/movie/${movie_id}`)}
+                      className="flex items-center gap-4 w-full p-3 bg-dark border border-dark-border hover:border-dark-hover rounded-xl transition-colors text-left"
+                    >
+                      <div className="w-10 h-14 rounded overflow-hidden shrink-0 bg-dark-secondary">
+                        <img
+                          src={
+                            poster_path
+                              ? `https://image.tmdb.org/t/p/w92${poster_path}`
+                              : `https://placehold.co/40x56/252525/ffffff?text=${encodeURIComponent(title.slice(0, 2))}`
+                          }
+                          alt={title}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            e.target.src = `https://placehold.co/40x56/252525/ffffff?text=${encodeURIComponent(title.slice(0, 2))}`;
+                          }}
+                        />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-bold text-white text-sm leading-tight truncate">{title}</p>
+                        <p className="text-xs text-gray-500 mt-0.5">
+                          Rated on {rated_at ? new Date(rated_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : ''}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-1 text-star shrink-0">
+                        <Star size={14} fill="currentColor" />
+                        <span className="font-bold text-sm text-white">{Number(rating).toFixed(1)}</span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-gray-500 text-sm">You haven't rated any movies yet.</p>
+              )}
             </motion.section>
 
           </div>
@@ -238,8 +271,8 @@ export default function ProfilePage() {
                   </label>
                   <input
                     type="text"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
                     className="w-full bg-dark border border-dark-border rounded-xl px-4 py-2.5 text-white placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-accent/50 focus:border-accent/50 transition-all text-sm"
                     placeholder="Your name"
                   />
@@ -250,8 +283,8 @@ export default function ProfilePage() {
                   </label>
                   <input
                     type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    value={editPassword}
+                    onChange={(e) => setEditPassword(e.target.value)}
                     className="w-full bg-dark border border-dark-border rounded-xl px-4 py-2.5 text-white placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-accent/50 focus:border-accent/50 transition-all text-sm"
                     placeholder="Leave blank to keep current"
                   />
@@ -278,14 +311,18 @@ export default function ProfilePage() {
                 Preferred Genres
               </p>
               <div className="flex flex-wrap gap-2">
-                {mockUserProfile.preferredGenres.map((genre) => (
-                  <span
-                    key={genre}
-                    className="px-3 py-1 rounded-full bg-accent/10 text-accent text-xs font-semibold border border-accent/20"
-                  >
-                    {genre}
-                  </span>
-                ))}
+                {user?.preferred_genres?.length > 0 ? (
+                  user.preferred_genres.map((genre) => (
+                    <span
+                      key={genre}
+                      className="px-3 py-1 rounded-full bg-accent/10 text-accent text-xs font-semibold border border-accent/20"
+                    >
+                      {genre}
+                    </span>
+                  ))
+                ) : (
+                  <p className="text-gray-500 text-sm">No genres selected yet.</p>
+                )}
                 <button className="px-3 py-1 rounded-full border border-dashed border-dark-border text-gray-500 text-xs font-bold hover:text-gray-300 hover:border-gray-500 transition-colors flex items-center gap-1">
                   <Plus size={12} />
                   Add More

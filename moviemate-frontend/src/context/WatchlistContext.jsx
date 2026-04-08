@@ -16,6 +16,7 @@ export function WatchlistProvider({ children }) {
       if (!isAuthenticated) {
         setWatchlistIds([]);
         setUserRatings({});
+        setIsLoading(false);
         return;
       }
 

@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { useState, useEffect } from 'react';
 import MovieCarousel from '../components/MovieCarousel';
 import { MOOD_CONFIG } from '../utils/constants';
-import { getTrendingMovies, getTopRatedMovies, getWatchlist } from '../services/api';  // ← NEW: getWatchlist, removed addToWatchlist
+import { getTrendingMovies, getTopRatedMovies, getWatchlist, getRecommendations } from '../services/api';
 import { useWatchlist } from '../context/WatchlistContext';  // ← NEW
 import { useAuth } from '../context/AuthContext';            // ← NEW
 
@@ -21,8 +21,8 @@ export default function HomePage() {
   const [heroMovie, setHeroMovie] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // ── NEW: Real watchlist section state ──
   const [watchlistMovies, setWatchlistMovies] = useState([]);
+  const [recommendedMovies, setRecommendedMovies] = useState([]);
 
   // ── NEW: Replace local handleAddToWatchlist with context ──
   const { isAuthenticated } = useAuth();
@@ -53,21 +53,27 @@ export default function HomePage() {
     fetchData();
   }, []);
 
-  // ── NEW: Fetch real watchlist separately (only when logged in) ──
+  // Fetch watchlist + personalized recs when auth state changes
   useEffect(() => {
     if (!isAuthenticated) {
       setWatchlistMovies([]);
+      setRecommendedMovies([]);
       return;
     }
-    const fetchWatchlist = async () => {
+    const fetchUserData = async () => {
       try {
-        const data = await getWatchlist();
-        setWatchlistMovies(data.movies?.slice(0, 6) || []);
+        const [watchlistData, recsData] = await Promise.all([
+          getWatchlist().catch(() => ({ movies: [] })),
+          getRecommendations().catch(() => ({ sections: [] })),
+        ]);
+        setWatchlistMovies(watchlistData.movies?.slice(0, 6) || []);
+        const allRecs = recsData.sections?.flatMap((s) => s.movies) || [];
+        setRecommendedMovies(allRecs.slice(0, 10));
       } catch (error) {
-        console.error('Error fetching watchlist:', error);
+        console.error('Error fetching user data:', error);
       }
     };
-    fetchWatchlist();
+    fetchUserData();
   }, [isAuthenticated]);
 
   // ── NEW: Derived from context — no local state needed ──
@@ -192,8 +198,22 @@ export default function HomePage() {
           />
         </motion.div>
 
+        {/* ── Recommended For You ── */}
+        {isAuthenticated && recommendedMovies.length > 0 && (
+          <motion.div
+            variants={fadeUp} initial="hidden" whileInView="visible" viewport={{ once: true }}
+          >
+            <MovieCarousel
+              title="Recommended For You"
+              movies={recommendedMovies}
+              seeAllLink="/recommendations"
+              variant="default"
+            />
+          </motion.div>
+        )}
+
         {/* ── From Your Watchlist ── */}
-        {/* ── NEW: Only show section when logged in and watchlist has movies ── */}
+        {/* Only show section when logged in and watchlist has movies */}
         {isAuthenticated && watchlistMovies.length > 0 && (
           <motion.section
             variants={fadeUp} initial="hidden" whileInView="visible" viewport={{ once: true }}
