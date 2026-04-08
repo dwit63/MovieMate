@@ -1,0 +1,74 @@
+{
+  "happy": {
+    "name": "Happy",
+    "emoji": "😊",
+    "color": "#F59E0B",
+    "genre_ids": [35, 10751, 16, 10749],
+    "genre_names": ["Comedy", "Family", "Animation", "Romance"],
+    "keywords": "feel-good, uplifting, funny, heartwarming, cheerful",
+    "description": "Feel-good movies to brighten your day"
+  },
+  "sad": {
+    "name": "Sad",
+    "emoji": "😢",
+    "color": "#6B7280",
+    "genre_ids": [18, 10749, 10752],
+    "genre_names": ["Drama", "Romance", "War"],
+    "keywords": "emotional, tearjerker, moving, bittersweet",
+    "description": "Deeply moving films for when you need a good cry"
+  },
+  "excited": {
+    "name": "Excited",
+    "emoji": "🔥",
+    "color": "#EF4444",
+    "genre_ids": [28, 12, 878],
+    "genre_names": ["Action", "Adventure", "Science Fiction"],
+    "keywords": "thrilling, adrenaline, explosive, fast-paced",
+    "description": "High-energy movies to match your excitement"
+  },
+  "relaxed": {
+    "name": "Relaxed",
+    "emoji": "🧘",
+    "color": "#10B981",
+    "genre_ids": [16, 10751, 10402, 99],
+    "genre_names": ["Animation", "Family", "Music", "Documentary"],
+    "keywords": "calm, peaceful, soothing, gentle, laid-back",
+    "description": "Chill movies for a laid-back evening"
+  },
+  "scared": {
+    "name": "Scared",
+    "emoji": "👻",
+    "color": "#8B5CF6",
+    "genre_ids": [27, 53, 9648],
+    "genre_names": ["Horror", "Thriller", "Mystery"],
+    "keywords": "scary, suspenseful, creepy, terrifying, dark",
+    "description": "Spine-tingling movies if you dare"
+  },
+  "thoughtful": {
+    "name": "Thoughtful",
+    "emoji": "🤔",
+    "color": "#3B82F6",
+    "genre_ids": [18, 9648, 99, 36],
+    "genre_names": ["Drama", "Mystery", "Documentary", "History"],
+    "keywords": "thought-provoking, intellectual, deep, philosophical",
+    "description": "Mind-expanding films that make you think"
+  },
+  "romantic": {
+    "name": "Romantic",
+    "emoji": "❤️",
+    "color": "#EC4899",
+    "genre_ids": [10749, 18, 35],
+    "genre_names": ["Romance", "Drama", "Comedy"],
+    "keywords": "love, romantic, passionate, sweet, date night",
+    "description": "Love stories and romantic tales"
+  },
+  "adventurous": {
+    "name": "Adventurous",
+    "emoji": "🧗",
+    "color": "#059669",
+    "genre_ids": [12, 14, 37, 878],
+    "genre_names": ["Adventure", "Fantasy", "Western", "Science Fiction"],
+    "keywords": "epic, journey, exploration, quest, wild",
+    "description": "Epic journeys and grand adventures"
+  }
+}

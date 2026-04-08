@@ -28,6 +28,8 @@ from routers import auth
 from routers import movies
 from routers import watchlist
 from routers import ratings
+from routers import recommendations
+from routers import profile
 
 # ============================================================
 # CREATE THE APP
@@ -73,10 +75,11 @@ Base.metadata.create_all(bind=engine)
 # We'll add more routers in later phases.
 
 app.include_router(auth.router)
-app.include_router(movies.router)          # Phase 3
-# app.include_router(recommendations.router) # Phase 4
-app.include_router(watchlist.router)        # Phase 5
-app.include_router(ratings.router)          # Phase 5
+app.include_router(movies.router)
+app.include_router(watchlist.router)
+app.include_router(ratings.router)
+app.include_router(recommendations.router)
+app.include_router(profile.router)
 
 
 # ============================================================
