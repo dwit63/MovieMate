@@ -5,14 +5,10 @@ This is the main file that starts your backend server.
 It sets up the app, configures CORS, includes all routers,
 and creates the database tables.
 
-TO RUN THE SERVER:
-  cd moviemate-backend
-  source venv/bin/activate  (or venv\\Scripts\\activate on Windows)
-  uvicorn main:app --reload --port 8000
-
-The --reload flag means the server auto-restarts when you change code.
-Visit http://localhost:8000/docs for the auto-generated API documentation.
 """
+
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -30,6 +26,10 @@ from routers import watchlist
 from routers import ratings
 from routers import recommendations
 from routers import profile
+from services.recommendation_engine import recommendation_engine
+
+# Single-worker executor — used to run the blocking initialize() off the event loop
+_executor = ThreadPoolExecutor(max_workers=1)
 
 # ============================================================
 # CREATE THE APP
@@ -67,6 +67,21 @@ app.add_middleware(
 # If the tables already exist, it does nothing (safe to run multiple times).
 
 Base.metadata.create_all(bind=engine)
+
+# ============================================================
+# INITIALIZE ML RECOMMENDATION ENGINE (background thread)
+# ============================================================
+# initialize() is CPU-bound and blocks for ~2 s (pickle load) or
+# ~10–20 min (full rebuild). Running it in an executor lets the
+# server accept requests immediately.  Endpoints that need the
+# engine check recommendation_engine.is_loaded and return 503
+# until it's ready.
+
+@app.on_event("startup")
+async def startup_event():
+    loop = asyncio.get_event_loop()
+    loop.run_in_executor(_executor, recommendation_engine.initialize)
+    print("Server started. ML engine loading in background...")
 
 # ============================================================
 # INCLUDE ROUTERS

@@ -2,6 +2,7 @@
 models/watch_history.py — Watch History Database Model
 
 Stores movies that users have marked as "watched".
+movie_id references movies.id so every watched movie is tracked locally.
 """
 
 from sqlalchemy import Column, Integer, DateTime, ForeignKey
@@ -16,5 +17,5 @@ class WatchHistory(Base):
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    movie_id = Column(Integer, nullable=False)  # TMDB movie ID
+    movie_id = Column(Integer, ForeignKey("movies.id"), nullable=False)
     watched_at = Column(DateTime(timezone=True), server_default=func.now())

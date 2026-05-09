@@ -15,7 +15,7 @@ Endpoints:
 - GET /api/movies/genres         → List of all genres (Explore page filter checkboxes)
 """
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, HTTPException
 from typing import Optional
 from services.tmdb_service import tmdb_service
 
@@ -139,9 +139,13 @@ async def get_movie_details(movie_id: int):
     would match any path like /trending, /popular etc. if placed before them.
     FastAPI checks routes in order — specific routes first, dynamic routes last.
     """
-    movie = await tmdb_service.get_movie_details(movie_id=movie_id)
-
-    if movie is None:
-        return {"error": "Movie not found", "id": movie_id}
-
-    return movie
+    try:
+        movie = await tmdb_service.get_movie_details(movie_id=movie_id)
+        if movie is None:
+            raise HTTPException(status_code=404, detail="Movie not found")
+        return movie
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error fetching movie {movie_id}: {e}")
+        raise HTTPException(status_code=503, detail="Could not fetch movie details")

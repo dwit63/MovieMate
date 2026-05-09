@@ -8,7 +8,7 @@ Endpoints:
 All endpoints require authentication.
 """
 
-import json
+import asyncio
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from collections import Counter
@@ -53,17 +53,21 @@ async def get_profile(
     if ratings:
         avg_rating = round(sum(r.rating for r in ratings) / len(ratings), 1)
 
-    # Build genre distribution from rated movies
+    # Build genre distribution from rated movies — fetch all in parallel
     genre_counter = Counter()
 
-    for rating in ratings:
+    async def _fetch_genre(rating):
         try:
-            movie = await tmdb_service.get_movie_details(rating.movie_id)
-            if movie:
-                for genre_name in movie.get("genres", []):
-                    genre_counter[genre_name] += 1
-        except Exception:
-            continue
+            return await tmdb_service.get_movie_details(rating.movie_id)
+        except Exception as e:
+            print(f"Error fetching movie {rating.movie_id} for genre distribution: {e}")
+            return None
+
+    genre_results = await asyncio.gather(*[_fetch_genre(r) for r in ratings])
+    for movie in genre_results:
+        if movie:
+            for genre_name in movie.get("genres", []):
+                genre_counter[genre_name] += 1
 
     top_genre = genre_counter.most_common(1)[0][0] if genre_counter else "N/A"
 
@@ -81,25 +85,27 @@ async def get_profile(
         Rating.user_id == current_user.id
     ).order_by(Rating.created_at.desc()).limit(5).all()
 
-    recent_rated_movies = []
-    for rating in recent_ratings_db:
+    # Fetch recent rating movie details in parallel
+    async def _fetch_recent(rating):
         try:
-            movie = await tmdb_service.get_movie_details(rating.movie_id)
-            if movie:
-                recent_rated_movies.append({
-                    "movie_id": rating.movie_id,
-                    "title": movie.get("title", "Unknown"),
-                    "poster_path": movie.get("poster_path"),
-                    "rating": rating.rating,
-                    "rated_at": rating.created_at.isoformat() if rating.created_at else None
-                })
-        except Exception:
-            continue
+            return (rating, await tmdb_service.get_movie_details(rating.movie_id))
+        except Exception as e:
+            print(f"Error fetching movie {rating.movie_id} for recent ratings: {e}")
+            return (rating, None)
 
-    try:
-        preferred_genres = json.loads(current_user.preferred_genres or "[]")
-    except json.JSONDecodeError:
-        preferred_genres = []
+    recent_results = await asyncio.gather(*[_fetch_recent(r) for r in recent_ratings_db])
+    recent_rated_movies = []
+    for rating, movie in recent_results:
+        if movie:
+            recent_rated_movies.append({
+                "movie_id": rating.movie_id,
+                "title": movie.get("title", "Unknown"),
+                "poster_path": movie.get("poster_path"),
+                "rating": rating.rating,
+                "rated_at": rating.created_at.isoformat() if rating.created_at else None
+            })
+
+    preferred_genres = [ug.genre_name for ug in current_user.user_genres]
 
     return {
         "user": {

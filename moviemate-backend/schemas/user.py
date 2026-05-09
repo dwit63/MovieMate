@@ -15,7 +15,7 @@ This is DIFFERENT from models:
 - Schemas = API data structure (what's sent/received)
 """
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, Field
 from typing import Optional, List
 from datetime import datetime
 
@@ -39,7 +39,7 @@ class UserResponse(BaseModel):
     id: int
     name: str
     email: str
-    preferred_genres: str = "[]"
+    genres: List[str] = []       # populated from the user_genres relationship
     is_onboarded: bool = False
     created_at: Optional[datetime] = None
 
@@ -51,7 +51,7 @@ class UserUpdate(BaseModel):
     """Schema for updating profile."""
     name: Optional[str] = None
     password: Optional[str] = None
-    preferred_genres: Optional[str] = None
+    genres: Optional[List[str]] = None   # replaces preferred_genres JSON string
     is_onboarded: Optional[bool] = None
 
 

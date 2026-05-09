@@ -17,6 +17,8 @@ RATE LIMIT: TMDB allows 40 requests per 10 seconds.
 For a university project, you'll never hit this limit.
 """
 
+import asyncio
+import time
 import httpx
 from typing import Optional, List, Dict
 from config import settings
@@ -33,6 +35,53 @@ class TMDBService:
         # We'll store genre mappings here (loaded once, reused)
         self._genre_map = None
 
+        # Simple in-memory response cache — avoids redundant TMDB calls
+        self._cache = {}
+        self._cache_ttl = 300  # seconds (5 minutes)
+
+        # Persistent HTTP client — reuses TCP+TLS connections instead of creating
+        # a new connection for every request. Prevents ConnectErrors on Windows when
+        # many requests fire in parallel (asyncio.gather).
+        self._http_client: httpx.AsyncClient | None = None
+
+    def _get_http_client(self) -> httpx.AsyncClient:
+        """Return the shared persistent HTTP client, creating it if needed."""
+        if self._http_client is None or self._http_client.is_closed:
+            self._http_client = httpx.AsyncClient(
+                trust_env=True,
+                timeout=httpx.Timeout(15.0, connect=10.0),
+                limits=httpx.Limits(
+                    max_connections=20,
+                    max_keepalive_connections=10,
+                    keepalive_expiry=30.0,
+                ),
+            )
+        return self._http_client
+
+    # ============================================================
+    # CACHE HELPERS
+    # ============================================================
+
+    def _get_cached(self, key: str):
+        """Return cached data if it exists and is under TTL, otherwise evict and return None."""
+        entry = self._cache.get(key)
+        if entry is None:
+            return None
+        ttl = entry.get("ttl", self._cache_ttl)   # per-entry TTL, falls back to default
+        if time.time() - entry["ts"] < ttl:
+            return entry["data"]
+        # Stale — remove it
+        del self._cache[key]
+        return None
+
+    def _set_cached(self, key: str, data, ttl: int = None) -> None:
+        """Store data in the cache with the current timestamp.
+
+        ttl: seconds until expiry; defaults to self._cache_ttl (300 s).
+        Pass ttl=3600 for data that rarely changes (e.g. genre lists).
+        """
+        self._cache[key] = {"data": data, "ts": time.time(), "ttl": ttl or self._cache_ttl}
+
     # ============================================================
     # HELPER: Make API Request
     # ============================================================
@@ -41,11 +90,8 @@ class TMDBService:
         """
         Send a GET request to TMDB API.
 
-        Example:
-          _make_request("/movie/popular", {"page": 1})
-          → sends GET to https://api.themoviedb.org/3/movie/popular?api_key=xxx&page=1
-
-        Returns the JSON response as a Python dictionary.
+        Uses a persistent HTTP client so connections are reused across requests
+        (no per-request TCP handshake). Retries up to 3 times on transient errors.
         """
         if params is None:
             params = {}
@@ -54,19 +100,18 @@ class TMDBService:
         params["api_key"] = self.api_key
 
         url = f"{self.base_url}{endpoint}"
+        client = self._get_http_client()
 
-        # httpx.AsyncClient is like a browser that sends requests
-        # trust_env=True makes httpx respect system proxy settings (HTTP_PROXY, HTTPS_PROXY env vars)
-        async with httpx.AsyncClient(trust_env=True) as client:
+        for attempt in range(3):
             try:
-                response = await client.get(url, params=params, timeout=15.0)
-                response.raise_for_status()  # Raise error if status code is 4xx or 5xx
+                response = await client.get(url, params=params)
+                response.raise_for_status()
                 return response.json()
-            except httpx.TimeoutException:
-                print(f"TMDB API Timeout: Could not reach {url} within 15s. Check network/VPN.")
-                return {"results": [], "total_pages": 0, "total_results": 0}
-            except httpx.ConnectError as e:
-                print(f"TMDB API ConnectError: {type(e).__name__} - {e}")
+            except (httpx.ConnectError, httpx.TimeoutException) as e:
+                if attempt < 2:
+                    await asyncio.sleep(0.5 * (attempt + 1))
+                    continue
+                print(f"TMDB API {type(e).__name__} (gave up after 3 attempts): {url}")
                 return {"results": [], "total_pages": 0, "total_results": 0}
             except httpx.HTTPStatusError as e:
                 print(f"TMDB API HTTP {e.response.status_code}: {e.response.text[:200]}")
@@ -74,6 +119,8 @@ class TMDBService:
             except httpx.HTTPError as e:
                 print(f"TMDB API Error: {type(e).__name__} - {e}")
                 return {"results": [], "total_pages": 0, "total_results": 0}
+
+        return {"results": [], "total_pages": 0, "total_results": 0}
 
     # ============================================================
     # GENRE MAPPING
@@ -87,8 +134,17 @@ class TMDBService:
         This function fetches the mapping so we can convert IDs to names.
 
         We cache it after the first call so we don't re-fetch every time.
+        Persisted in the TTL cache with a 1-hour expiry (genres rarely change).
         """
+        # 1. In-process dict (fastest — no serialization)
         if self._genre_map is not None:
+            return self._genre_map
+
+        # 2. TTL cache (survives across _genre_map resets, 1-hour TTL)
+        cache_key = "genre_map"
+        cached = self._get_cached(cache_key)
+        if cached is not None:
+            self._genre_map = cached
             return self._genre_map
 
         data = await self._make_request("/genre/movie/list", {"language": "en-US"})
@@ -96,6 +152,7 @@ class TMDBService:
 
         # Build a dictionary: {28: "Action", 35: "Comedy", ...}
         self._genre_map = {g["id"]: g["name"] for g in genres}
+        self._set_cached(cache_key, self._genre_map, ttl=3600)  # 1-hour TTL
         return self._genre_map
 
     # ============================================================
@@ -153,6 +210,11 @@ class TMDBService:
         This returns movies that are popular/trending right now.
         Used on the Home page hero banner and "Trending This Week" section.
         """
+        cache_key = "trending"
+        cached = self._get_cached(cache_key)
+        if cached is not None:
+            return cached
+
         data = await self._make_request("/trending/movie/week", {
             "page": page,
             "language": "en-US"
@@ -160,12 +222,14 @@ class TMDBService:
 
         movies = await self._format_movie_list(data.get("results", []))
 
-        return {
+        result = {
             "movies": movies,
             "page": data.get("page", 1),
             "total_pages": data.get("total_pages", 1),
             "total_results": data.get("total_results", 0)
         }
+        self._set_cached(cache_key, result)
+        return result
 
     # ============================================================
     # TOP RATED MOVIES
@@ -178,6 +242,11 @@ class TMDBService:
         TMDB Endpoint: /movie/top_rated
         Used on the Home page "Top Rated" section.
         """
+        cache_key = f"top_rated_{page}"
+        cached = self._get_cached(cache_key)
+        if cached is not None:
+            return cached
+
         data = await self._make_request("/movie/top_rated", {
             "page": page,
             "language": "en-US"
@@ -185,12 +254,14 @@ class TMDBService:
 
         movies = await self._format_movie_list(data.get("results", []))
 
-        return {
+        result = {
             "movies": movies,
             "page": data.get("page", 1),
             "total_pages": data.get("total_pages", 1),
             "total_results": data.get("total_results", 0)
         }
+        self._set_cached(cache_key, result)
+        return result
 
     # ============================================================
     # POPULAR MOVIES
@@ -203,6 +274,11 @@ class TMDBService:
         TMDB Endpoint: /movie/popular
         Used on the Explore page default view.
         """
+        cache_key = f"popular_{page}"
+        cached = self._get_cached(cache_key)
+        if cached is not None:
+            return cached
+
         data = await self._make_request("/movie/popular", {
             "page": page,
             "language": "en-US"
@@ -210,12 +286,14 @@ class TMDBService:
 
         movies = await self._format_movie_list(data.get("results", []))
 
-        return {
+        result = {
             "movies": movies,
             "page": data.get("page", 1),
             "total_pages": data.get("total_pages", 1),
             "total_results": data.get("total_results", 0)
         }
+        self._set_cached(cache_key, result)
+        return result
 
     # ============================================================
     # SEARCH MOVIES
@@ -260,6 +338,11 @@ class TMDBService:
 
         Used on the Movie Detail page.
         """
+        cache_key = f"movie_{movie_id}"
+        cached = self._get_cached(cache_key)
+        if cached is not None:
+            return cached
+
         data = await self._make_request(f"/movie/{movie_id}", {
             "language": "en-US",
             "append_to_response": "credits,videos,similar"
@@ -309,7 +392,7 @@ class TMDBService:
         # Format genre names
         genres = [g["name"] for g in data.get("genres", [])]
 
-        return {
+        result = {
             "id": data.get("id"),
             "title": data.get("title", ""),
             "overview": data.get("overview", ""),
@@ -330,6 +413,8 @@ class TMDBService:
             "status": data.get("status", ""),
             "original_language": data.get("original_language", "en"),
         }
+        self._set_cached(cache_key, result)
+        return result
 
     # ============================================================
     # MOVIES BY GENRE
@@ -422,9 +507,17 @@ class TMDBService:
 
         Returns: [{"id": 28, "name": "Action"}, {"id": 35, "name": "Comedy"}, ...]
         Used on the Explore page genre filter checkboxes.
+        Cached for 1 hour — genre list changes extremely rarely.
         """
+        cache_key = "genres_list"
+        cached = self._get_cached(cache_key)
+        if cached is not None:
+            return cached
+
         data = await self._make_request("/genre/movie/list", {"language": "en-US"})
-        return data.get("genres", [])
+        genres = data.get("genres", [])
+        self._set_cached(cache_key, genres, ttl=3600)  # 1-hour TTL
+        return genres
 
 
 # Create a single instance to use everywhere

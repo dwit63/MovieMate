@@ -12,6 +12,8 @@ Endpoints:
 All endpoints require authentication (JWT token).
 """
 
+import asyncio
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List
@@ -19,12 +21,38 @@ from typing import List
 from database import get_db
 from models.watchlist import Watchlist
 from models.watch_history import WatchHistory
+from models.movie import Movie
 from services.auth_service import get_current_user
 from models.user import User
 from services.tmdb_service import tmdb_service
 
 router = APIRouter(prefix="/api/watchlist", tags=["Watchlist"])
 
+
+# ---------------------------------------------------------------------------
+# Helper
+# ---------------------------------------------------------------------------
+
+async def _ensure_movie_exists(movie_id: int, db: Session) -> None:
+    """Insert a Movie row if it isn't already in the local movies table."""
+    if db.query(Movie).filter(Movie.id == movie_id).first():
+        return
+    details = await tmdb_service.get_movie_details(movie_id)
+    if details and details.get("id"):
+        db.add(Movie(
+            id=details["id"],
+            title=details.get("title", "Unknown"),
+            poster_path=details.get("poster_path"),
+            release_date=details.get("release_date"),
+            vote_average=details.get("vote_average"),
+            genres=",".join(details.get("genres", [])),
+        ))
+        db.flush()
+
+
+# ---------------------------------------------------------------------------
+# Endpoints
+# ---------------------------------------------------------------------------
 
 @router.get("")
 async def get_watchlist(
@@ -52,20 +80,25 @@ async def get_watchlist(
         Watchlist.user_id == current_user.id
     ).order_by(Watchlist.added_at.desc()).all()
 
-    # Fetch movie details from TMDB for each movie
-    movies = []
-    for entry in watchlist_entries:
+    # Early return if watchlist is empty
+    if not watchlist_entries:
+        return {"movies": [], "total": 0}
+
+    # Fetch all movie details from TMDB in parallel
+    async def fetch_one(entry):
         try:
             movie = await tmdb_service.get_movie_details(entry.movie_id)
             if movie and "id" in movie:
-                # Add the watchlist metadata
                 movie["added_at"] = entry.added_at.isoformat() if entry.added_at else None
                 movie["watchlist_id"] = entry.id
-                movies.append(movie)
+                return movie
+            return None
         except Exception as e:
             print(f"Error fetching movie {entry.movie_id}: {e}")
-            # If TMDB fails for one movie, skip it and continue
-            continue
+            return None
+
+    results = await asyncio.gather(*[fetch_one(e) for e in watchlist_entries])
+    movies = [m for m in results if m is not None]
 
     return {
         "movies": movies,
@@ -137,6 +170,9 @@ async def add_to_watchlist(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Movie is already in your watchlist"
         )
+
+    # Ensure the movie exists in the local movies table (FK requirement)
+    await _ensure_movie_exists(movie_id, db)
 
     # Add to watchlist
     new_entry = Watchlist(
@@ -213,6 +249,9 @@ async def mark_as_watched(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="movie_id is required"
         )
+
+    # Ensure the movie exists in the local movies table (FK requirement)
+    await _ensure_movie_exists(movie_id, db)
 
     # Remove from watchlist if present
     watchlist_entry = db.query(Watchlist).filter(

@@ -11,18 +11,46 @@ Endpoints:
 All endpoints require authentication (JWT token).
 """
 
+import asyncio
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 
 from database import get_db
 from models.rating import Rating
+from models.movie import Movie
 from models.user import User
 from services.auth_service import get_current_user
 from services.tmdb_service import tmdb_service
 
 router = APIRouter(prefix="/api/ratings", tags=["Ratings"])
 
+
+# ---------------------------------------------------------------------------
+# Helper
+# ---------------------------------------------------------------------------
+
+async def _ensure_movie_exists(movie_id: int, db: Session) -> None:
+    """Insert a Movie row if it isn't already in the local movies table."""
+    if db.query(Movie).filter(Movie.id == movie_id).first():
+        return
+    details = await tmdb_service.get_movie_details(movie_id)
+    if details and details.get("id"):
+        db.add(Movie(
+            id=details["id"],
+            title=details.get("title", "Unknown"),
+            poster_path=details.get("poster_path"),
+            release_date=details.get("release_date"),
+            vote_average=details.get("vote_average"),
+            genres=",".join(details.get("genres", [])),
+        ))
+        db.flush()
+
+
+# ---------------------------------------------------------------------------
+# Endpoints
+# ---------------------------------------------------------------------------
 
 @router.post("")
 async def rate_movie(
@@ -59,6 +87,9 @@ async def rate_movie(
         )
 
     rating_value = float(rating_value)
+
+    # Ensure the movie exists in the local movies table (FK requirement)
+    await _ensure_movie_exists(movie_id, db)
 
     # Check if user already rated this movie
     existing_rating = db.query(Rating).filter(
@@ -113,26 +144,25 @@ async def get_user_ratings(
         Rating.user_id == current_user.id
     ).order_by(Rating.created_at.desc()).all()
 
-    rated_movies = []
-    for rating in ratings:
+    async def fetch_one(rating):
         try:
             movie = await tmdb_service.get_movie_details(rating.movie_id)
-            if movie and "id" in movie:
-                rated_movies.append({
-                    "movie_id": rating.movie_id,
-                    "rating": rating.rating,
-                    "rated_at": rating.created_at.isoformat() if rating.created_at else None,
-                    "movie": movie
-                })
+            return {
+                "movie_id": rating.movie_id,
+                "rating": rating.rating,
+                "rated_at": rating.created_at.isoformat() if rating.created_at else None,
+                "movie": movie if (movie and "id" in movie) else None
+            }
         except Exception as e:
             print(f"Error fetching movie {rating.movie_id}: {e}")
-            # Include basic info even if TMDB fails
-            rated_movies.append({
+            return {
                 "movie_id": rating.movie_id,
                 "rating": rating.rating,
                 "rated_at": rating.created_at.isoformat() if rating.created_at else None,
                 "movie": None
-            })
+            }
+
+    rated_movies = list(await asyncio.gather(*[fetch_one(r) for r in ratings]))
 
     return {
         "ratings": rated_movies,
