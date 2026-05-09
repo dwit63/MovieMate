@@ -1,10 +1,11 @@
+import { memo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Star, Plus, Check } from 'lucide-react';
 import GenreTag from './GenreTag';
 import { useWatchlist } from '../context/WatchlistContext';  // ← NEW
 import { useAuth } from '../context/AuthContext';            // ← NEW
 
-export default function MovieCard({ movie, variant = 'default' }) {
+function MovieCard({ movie, variant = 'default' }) {
   const navigate = useNavigate();
 
   // ── NEW: Replace local inWatchlist state with global context ──
@@ -15,7 +16,7 @@ export default function MovieCard({ movie, variant = 'default' }) {
 
   // ── Normalise fields — works with both TMDB data and old mock data ──
   const posterUrl = movie.poster_path
-    ? `https://image.tmdb.org/t/p/w500${movie.poster_path}`
+    ? `https://image.tmdb.org/t/p/w342${movie.poster_path}`
     : movie.posterUrl
     || `https://placehold.co/300x450/1a1a1a/ffffff?text=${encodeURIComponent(movie.title)}`;
 
@@ -51,6 +52,7 @@ export default function MovieCard({ movie, variant = 'default' }) {
           src={posterUrl}
           alt={movie.title}
           className="w-16 h-24 object-cover flex-shrink-0"
+          loading="lazy"
           onError={(e) => { e.target.src = `https://placehold.co/64x96/1a1a1a/ffffff?text=N/A`; }}
         />
         <div className="flex flex-col justify-center py-2 pr-3 gap-1 min-w-0">
@@ -84,6 +86,7 @@ export default function MovieCard({ movie, variant = 'default' }) {
           src={backdropUrl}
           alt={movie.title}
           className="w-full h-36 object-cover group-hover:scale-105 transition-transform duration-300"
+          loading="lazy"
           onError={(e) => { e.target.src = `https://placehold.co/256x144/1a1a1a/ffffff?text=${encodeURIComponent(movie.title)}`; }}
         />
         <div className="absolute inset-0 hero-gradient flex flex-col justify-end p-3">
@@ -122,6 +125,7 @@ export default function MovieCard({ movie, variant = 'default' }) {
           src={posterUrl}
           alt={movie.title}
           className="w-full aspect-[2/3] object-cover"
+          loading="lazy"
           onError={(e) => { e.target.src = `https://placehold.co/300x450/1a1a1a/ffffff?text=${encodeURIComponent(movie.title)}`; }}
         />
         <div className="absolute top-2 left-2 flex items-center gap-1 bg-black/70 backdrop-blur-sm px-2 py-1 rounded-full">
@@ -163,3 +167,5 @@ export default function MovieCard({ movie, variant = 'default' }) {
     </div>
   );
 }
+
+export default memo(MovieCard);

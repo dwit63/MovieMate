@@ -10,6 +10,8 @@ import RatingStars from '../components/RatingStars';
 import TrailerModal from '../components/TrailerModal';
 import { getMovieById } from '../services/api';
 import { useWatchlist } from '../context/WatchlistContext';
+import { useAuth } from '../context/AuthContext';            // ← NEW
+
 
 const fadeUp = {
   hidden: { opacity: 0, y: 24 },
@@ -25,11 +27,13 @@ export default function MovieDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
 
-  const { isInWatchlist, toggleWatchlist, getUserRating, submitRating } = useWatchlist();
-
   const [movie, setMovie] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [trailerOpen, setTrailerOpen] = useState(false);
+
+  // ── NEW: Replace local inWatchlist + userRating state with context ──
+  const { isAuthenticated } = useAuth();
+  const { isInWatchlist, toggleWatchlist, submitRating, getUserRating } = useWatchlist();
 
   const carouselRef = useRef(null);
   const scroll = (dir) => {
@@ -50,22 +54,17 @@ export default function MovieDetailPage() {
     };
 
     fetchMovie();
-    // Scroll to top when navigating to a new movie
     window.scrollTo(0, 0);
   }, [id]);
 
+  // ── NEW: Derived from context instead of local state ──
   const inWatchlist = movie ? isInWatchlist(movie.id) : false;
-  const userRating = movie ? (getUserRating(movie.id) ?? 0) : 0;
-
-  const handleWatchlist = () => {
-    if (movie) toggleWatchlist(movie.id);
-  };
+  const myRating = movie ? getUserRating(movie.id) : null;
 
   // ── Loading State ──────────────────────────────────────────────────────────
   if (isLoading) {
     return (
       <div className="min-h-screen flex flex-col">
-        {/* Backdrop skeleton */}
         <div className="h-[85vh] min-h-[520px] w-full bg-dark-card animate-pulse" />
         <div className="mx-auto w-full max-w-7xl px-6 py-12 lg:px-20 space-y-6">
           <div className="h-8 w-64 bg-dark-card rounded animate-pulse" />
@@ -169,10 +168,12 @@ export default function MovieDetailPage() {
                   </div>
                   <div className="flex flex-col gap-1">
                     <span className="text-xs text-gray-500">Your rating</span>
+                    {/* ── NEW: Uses context rating + submitRating ── */}
                     <RatingStars
-                      rating={userRating}
+                      rating={myRating || 0}
                       size="md"
-                      onRate={(r) => submitRating(movie.id, r)}
+                      onRate={(value) => submitRating(movie.id, value)}
+                      readonly={!isAuthenticated}
                     />
                   </div>
                 </div>
@@ -186,8 +187,9 @@ export default function MovieDetailPage() {
                     <Play size={16} fill="black" />
                     Watch Trailer
                   </button>
+                  {/* ── NEW: Uses context toggleWatchlist instead of local handleWatchlist ── */}
                   <button
-                    onClick={handleWatchlist}
+                    onClick={() => toggleWatchlist(movie.id)}
                     className={`flex items-center gap-2 px-7 py-3 rounded-lg font-bold text-sm border active:scale-95 transition-all
                       ${inWatchlist
                         ? 'bg-accent/10 border-accent text-accent'

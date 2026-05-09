@@ -6,6 +6,7 @@ import toast from 'react-hot-toast';
 import GenreTag from '../components/GenreTag';
 import { getWatchlist, markAsWatched } from '../services/api';  // ← NEW
 import { useWatchlist } from '../context/WatchlistContext';       // ← NEW
+import { useAuth } from '../context/AuthContext';
 
 const SORT_OPTIONS = ['Date Added', 'Rating', 'Title'];
 
@@ -27,27 +28,36 @@ export default function WatchlistPage() {
   const [movies, setMovies] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const { removeFromList } = useWatchlist();  // ← NEW: syncs global context
+  const { isAuthenticated } = useAuth();
 
   const [activeSort, setActiveSort] = useState('Date Added');
   const [activeGenre, setActiveGenre] = useState('All');
 
   // ── NEW: Fetch real watchlist from backend on mount ──
   useEffect(() => {
+    const controller = new AbortController();
     const fetchWatchlist = async () => {
+      if (!isAuthenticated) return;
       try {
         setIsLoading(true);
         const data = await getWatchlist();
-        setMovies(data.movies || []);
+        if (!controller.signal.aborted) {
+          setMovies(data.movies || []);
+        }
       } catch (error) {
+        if (error.name === 'AbortError') return;
         console.error('Error fetching watchlist:', error);
         toast.error('Failed to load watchlist');
       } finally {
-        setIsLoading(false);
+        if (!controller.signal.aborted) {
+          setIsLoading(false);
+        }
       }
     };
 
     fetchWatchlist();
-  }, []);
+    return () => controller.abort();
+  }, [isAuthenticated]);
 
   // ── NEW: Build genre list dynamically from real data ──
   const ALL_GENRES = useMemo(() => {

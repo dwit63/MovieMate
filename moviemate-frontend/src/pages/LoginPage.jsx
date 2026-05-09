@@ -9,12 +9,12 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const { login, isAuthenticated } = useAuth();
 
-  if (isAuthenticated) return <Navigate to="/home" replace />;
-
   const [form, setForm] = useState({ email: '', password: '' });
   const [errors, setErrors] = useState({});
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  if (isAuthenticated) return <Navigate to="/home" replace />;
 
   const validate = () => {
     const e = {};

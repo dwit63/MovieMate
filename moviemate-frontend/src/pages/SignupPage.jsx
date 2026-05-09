@@ -5,15 +5,18 @@ import { useAuth } from '../context/AuthContext';
 
 export default function SignupPage() {
   const navigate = useNavigate();
-  const { signup, isAuthenticated } = useAuth();
+  const { signup, isAuthenticated, user } = useAuth();
 
-  if (isAuthenticated) return <Navigate to="/home" replace />;
-
+  // All hooks must be declared before any early returns (React Rules of Hooks)
   const [form, setForm] = useState({ name: '', email: '', password: '', confirmPassword: '' });
   const [errors, setErrors] = useState({});
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  if (isAuthenticated) {
+    return <Navigate to={user?.is_onboarded ? '/home' : '/onboarding'} replace />;
+  }
 
   const validate = () => {
     const e = {};

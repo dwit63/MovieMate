@@ -49,9 +49,9 @@ export function AuthProvider({ children }) {
           const userData = await getCurrentUser();
           setUser(userData);
           setToken(storedToken);
-        } catch (error) {
-          // Token is invalid or expired — clear everything
-          console.error('Token validation failed:', error);
+        } catch {
+          // Token is invalid or expired — clear everything and the
+          // response interceptor in api.js will redirect to /login
           localStorage.removeItem('moviemate_token');
           setUser(null);
           setToken(null);

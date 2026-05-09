@@ -28,19 +28,29 @@ export default function ProfilePage() {
   const [editPassword, setEditPassword] = useState('');
 
   useEffect(() => {
+    const controller = new AbortController();
     const fetchProfile = async () => {
       try {
         setIsLoading(true);
         const data = await getUserProfile();
-        setProfileData(data);
-        setEditName(data.user?.name || '');
+        if (!controller.signal.aborted) {
+          setProfileData(data);
+          setEditName(data.user?.name || '');
+        }
       } catch (error) {
+        if (error.name === 'AbortError') return;
         console.error('Error fetching profile:', error);
+        if (!controller.signal.aborted) {
+          toast.error('Failed to load profile');
+        }
       } finally {
-        setIsLoading(false);
+        if (!controller.signal.aborted) {
+          setIsLoading(false);
+        }
       }
     };
     fetchProfile();
+    return () => controller.abort();
   }, []);
 
   const handleUpdateProfile = async (e) => {

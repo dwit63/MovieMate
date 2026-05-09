@@ -1,10 +1,12 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { RefreshCw, Rocket, Heart, Gem } from 'lucide-react';
 import { motion } from 'framer-motion';
+import toast from 'react-hot-toast';
 import MovieCard from '../components/MovieCard';
 import LoadingSpinner from '../components/LoadingSpinner';
-import { getRecommendations, getGenresYouLove, getHiddenGems } from '../services/api';
+import { getRecommendations, getMLRecommendations, getGenresYouLove, getHiddenGems } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 
 const sectionFade = {
   hidden: { opacity: 0, y: 28 },
@@ -13,31 +15,61 @@ const sectionFade = {
 
 export default function RecommendationsPage() {
   const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
 
   const [sections, setSections] = useState([]);
   const [genrePicks, setGenrePicks] = useState([]);
   const [hiddenGems, setHiddenGems] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Tracks whether this component instance is still mounted
+  const isMountedRef = useRef(true);
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => { isMountedRef.current = false; };
+  }, []);
+
   const fetchAllRecommendations = useCallback(async () => {
     try {
       setIsLoading(true);
 
-      const [recsData, genresData, gemsData] = await Promise.all([
-        getRecommendations().catch(() => ({ sections: [] })),
+      // Try ML recommendations first, fall back to genre-based
+      let mlSections = [];
+      try {
+        const mlData = await getMLRecommendations(20);
+        if (mlData.sections && mlData.sections.length > 0) {
+          mlSections = mlData.sections;
+        }
+      } catch {
+        console.log('ML recs unavailable, using genre-based');
+      }
+
+      if (mlSections.length === 0) {
+        const recsData = await getRecommendations().catch(() => ({ sections: [] }));
+        mlSections = recsData.sections || [];
+      }
+
+      const [genresData, gemsData] = await Promise.all([
         getGenresYouLove().catch(() => ({ genres: [] })),
         getHiddenGems().catch(() => ({ movies: [] })),
       ]);
 
-      setSections(recsData.sections || []);
-      setGenrePicks(genresData.genres || []);
-      setHiddenGems(gemsData.movies || []);
+      if (isMountedRef.current) {
+        setSections(mlSections);
+        setGenrePicks(genresData.genres || []);
+        setHiddenGems(gemsData.movies || []);
+      }
     } catch (error) {
-      console.error('Error fetching recommendations:', error);
+      if (isMountedRef.current) {
+        console.error('Error fetching recommendations:', error);
+        toast.error('Failed to load recommendations');
+      }
     } finally {
-      setIsLoading(false);
+      if (isMountedRef.current) {
+        setIsLoading(false);
+      }
     }
-  }, []);
+  }, [isAuthenticated]);
 
   useEffect(() => {
     fetchAllRecommendations();

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Shuffle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import toast from 'react-hot-toast';
 import MovieGrid from '../components/MovieGrid';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { getMoods, getMoodMovies, getPopularMovies } from '../services/api';
@@ -34,17 +35,25 @@ export default function MoodPage() {
 
   // Fetch moods on mount
   useEffect(() => {
+    const controller = new AbortController();
     const fetchMoods = async () => {
       try {
         const data = await getMoods();
-        setMoods(data.moods || []);
+        if (!controller.signal.aborted) {
+          setMoods(data.moods || []);
+        }
       } catch (error) {
+        if (error.name === 'AbortError') return;
         console.error('Error fetching moods:', error);
+        toast.error('Failed to load moods');
       } finally {
-        setIsLoading(false);
+        if (!controller.signal.aborted) {
+          setIsLoading(false);
+        }
       }
     };
     fetchMoods();
+    return () => controller.abort();
   }, []);
 
   // Handle mood selection
@@ -64,6 +73,7 @@ export default function MoodPage() {
       });
     } catch (error) {
       console.error('Error fetching mood movies:', error);
+      toast.error('Failed to load movies for this mood');
     } finally {
       setIsLoadingMovies(false);
     }

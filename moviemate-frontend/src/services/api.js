@@ -58,9 +58,13 @@ API.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response && error.response.status === 401) {
+      const hadToken = !!localStorage.getItem('moviemate_token');
       localStorage.removeItem('moviemate_token');
-      // Optionally redirect to login
-      // window.location.href = '/login';
+      // Redirect to login only if the user had a token (expired session),
+      // not on intentional unauthenticated requests.
+      if (hadToken && !error.config.url.includes('/auth/login')) {
+        window.location.href = '/login';
+      }
     }
     return Promise.reject(error);
   }
@@ -233,6 +237,29 @@ export const getGenresYouLove = async () => {
  */
 export const getHiddenGems = async (page = 1) => {
   const response = await API.get('/recommend/hidden-gems', { params: { page } });
+  return response.data;
+};
+
+// ============================================================
+// ML RECOMMENDATION API CALLS
+// ============================================================
+
+/**
+ * Get ML-powered similar movies for a specific movie.
+ * Returns similarity scores + explanation strings.
+ * Used on: MovieDetail page "Similar Movies" section.
+ */
+export const getSimilarMoviesML = async (movieId, limit = 10) => {
+  const response = await API.get(`/recommend/similar/${movieId}`, { params: { limit } });
+  return response.data;
+};
+
+/**
+ * Get ML-powered personalized recommendations grouped into "Because You Liked X" sections.
+ * Used on: Home page "Recommended For You", Recommendations page.
+ */
+export const getMLRecommendations = async (limit = 20) => {
+  const response = await API.get('/recommend/ml/personalized', { params: { limit } });
   return response.data;
 };
 

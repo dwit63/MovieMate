@@ -2,6 +2,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { Play, Bookmark, Check } from 'lucide-react';  // ← NEW: Check added
 import { motion } from 'framer-motion';
 import { useState, useEffect } from 'react';
+import toast from 'react-hot-toast';
 import MovieCarousel from '../components/MovieCarousel';
 import { MOOD_CONFIG } from '../utils/constants';
 import { getTrendingMovies, getTopRatedMovies, getWatchlist, getRecommendations } from '../services/api';
@@ -29,28 +30,38 @@ export default function HomePage() {
   const { isInWatchlist, toggleWatchlist } = useWatchlist();
 
   useEffect(() => {
+    const controller = new AbortController();
     const fetchData = async () => {
       try {
         setIsLoading(true);
 
         const trendingData = await getTrendingMovies();
-        setTrendingMovies(trendingData.movies || []);
-
-        if (trendingData.movies && trendingData.movies.length > 0) {
-          setHeroMovie(trendingData.movies[0]);
+        if (!controller.signal.aborted) {
+          setTrendingMovies(trendingData.movies || []);
+          if (trendingData.movies && trendingData.movies.length > 0) {
+            // Pick a random movie from the top 5 trending so the hero varies each visit
+            const heroPool = trendingData.movies.slice(0, 5);
+            setHeroMovie(heroPool[Math.floor(Math.random() * heroPool.length)]);
+          }
         }
 
         const topRatedData = await getTopRatedMovies();
-        setTopRatedMovies(topRatedData.movies || []);
-
+        if (!controller.signal.aborted) {
+          setTopRatedMovies(topRatedData.movies || []);
+        }
       } catch (error) {
+        if (error.name === 'AbortError') return;
         console.error('Error fetching home data:', error);
+        toast.error('Failed to load movies');
       } finally {
-        setIsLoading(false);
+        if (!controller.signal.aborted) {
+          setIsLoading(false);
+        }
       }
     };
 
     fetchData();
+    return () => controller.abort();
   }, []);
 
   // Fetch watchlist + personalized recs when auth state changes
@@ -60,20 +71,26 @@ export default function HomePage() {
       setRecommendedMovies([]);
       return;
     }
+    const controller = new AbortController();
     const fetchUserData = async () => {
       try {
         const [watchlistData, recsData] = await Promise.all([
           getWatchlist().catch(() => ({ movies: [] })),
           getRecommendations().catch(() => ({ sections: [] })),
         ]);
-        setWatchlistMovies(watchlistData.movies?.slice(0, 6) || []);
-        const allRecs = recsData.sections?.flatMap((s) => s.movies) || [];
-        setRecommendedMovies(allRecs.slice(0, 10));
+        if (!controller.signal.aborted) {
+          setWatchlistMovies(watchlistData.movies?.slice(0, 6) || []);
+          const allRecs = recsData.sections?.flatMap((s) => s.movies) || [];
+          setRecommendedMovies(allRecs.slice(0, 10));
+        }
       } catch (error) {
+        if (error.name === 'AbortError') return;
         console.error('Error fetching user data:', error);
+        toast.error('Failed to load personalized content');
       }
     };
     fetchUserData();
+    return () => controller.abort();
   }, [isAuthenticated]);
 
   // ── NEW: Derived from context — no local state needed ──
@@ -235,7 +252,7 @@ export default function HomePage() {
                   <img
                     src={
                       movie.poster_path
-                        ? `https://image.tmdb.org/t/p/w500${movie.poster_path}`
+                        ? `https://image.tmdb.org/t/p/w342${movie.poster_path}`
                         : `https://placehold.co/200x300/1a1a1a/ffffff?text=${encodeURIComponent(movie.title)}`
                     }
                     alt={movie.title}

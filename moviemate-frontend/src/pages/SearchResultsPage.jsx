@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { SearchX, Search } from 'lucide-react';
 import { motion } from 'framer-motion';
+import toast from 'react-hot-toast';
 import MovieGrid from '../components/MovieGrid';
 import { searchMovies } from '../services/api';
 
@@ -18,6 +19,7 @@ export default function SearchResultsPage() {
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
+    const controller = new AbortController();
     const fetchResults = async () => {
       if (!query.trim()) {
         setMovies([]);
@@ -26,16 +28,25 @@ export default function SearchResultsPage() {
       try {
         setIsLoading(true);
         const data = await searchMovies(query);
-        setMovies(data.movies || []);
+        if (!controller.signal.aborted) {
+          setMovies(data.movies || []);
+        }
       } catch (error) {
+        if (error.name === 'AbortError') return;
         console.error('Search error:', error);
-        setMovies([]);
+        if (!controller.signal.aborted) {
+          setMovies([]);
+          toast.error('Search failed. Please try again.');
+        }
       } finally {
-        setIsLoading(false);
+        if (!controller.signal.aborted) {
+          setIsLoading(false);
+        }
       }
     };
 
     fetchResults();
+    return () => controller.abort();
   }, [query]);
 
   const hasQuery = query.trim().length > 0;

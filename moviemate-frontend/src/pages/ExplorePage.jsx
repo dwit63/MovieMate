@@ -215,19 +215,25 @@ export default function ExplorePage() {
 
   // Fetch genres once on mount
   useEffect(() => {
+    const controller = new AbortController();
     const fetchGenres = async () => {
       try {
         const data = await getGenres();
-        setGenres(data.genres || []);
+        if (!controller.signal.aborted) {
+          setGenres(data.genres || []);
+        }
       } catch (error) {
+        if (error.name === 'AbortError') return;
         console.error('Error fetching genres:', error);
       }
     };
     fetchGenres();
+    return () => controller.abort();
   }, []);
 
   // Fetch movies whenever filters or page change
   useEffect(() => {
+    const controller = new AbortController();
     const fetchMovies = async () => {
       try {
         setIsLoading(true);
@@ -245,18 +251,23 @@ export default function ExplorePage() {
         if (filters.language)            params.language = filters.language;
 
         const data = await discoverMovies(params);
-        setMovies(data.movies || []);
-        setTotalPages(data.total_pages || 1);
-        setTotalResults(data.total_results || 0);
-
+        if (!controller.signal.aborted) {
+          setMovies(data.movies || []);
+          setTotalPages(data.total_pages || 1);
+          setTotalResults(data.total_results || 0);
+        }
       } catch (error) {
+        if (error.name === 'AbortError') return;
         console.error('Error fetching movies:', error);
       } finally {
-        setIsLoading(false);
+        if (!controller.signal.aborted) {
+          setIsLoading(false);
+        }
       }
     };
 
     fetchMovies();
+    return () => controller.abort();
   }, [filters, page]);
 
   const handleFilterChange = (key, value) => {
