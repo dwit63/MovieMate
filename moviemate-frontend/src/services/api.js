@@ -4,7 +4,7 @@
  * This file handles ALL communication between the frontend and backend.
  *
  * HOW IT WORKS:
- * 1. We create an "axios instance" with the backend URL (http://localhost:8000)
+ * 1. We create an "axios instance" with the backend URL from Vite env
  * 2. We add an "interceptor" that automatically attaches the JWT token to every request
  * 3. We export functions that the rest of the app can call
  *
@@ -18,7 +18,7 @@ import axios from 'axios';
 
 // Create an axios instance with the backend base URL
 const API = axios.create({
-  baseURL: 'http://localhost:8000/api',  // Our FastAPI backend
+  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8002/api',
   headers: {
     'Content-Type': 'application/json',
   },
