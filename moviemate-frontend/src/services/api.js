@@ -95,6 +95,16 @@ export const loginUser = async (email, password) => {
 };
 
 /**
+ * Log in or sign up with a Google ID token.
+ * Sends: { credential }
+ * Receives: { token, user, message }
+ */
+export const googleAuth = async (credential) => {
+  const response = await API.post('/auth/google', { credential });
+  return response.data;
+};
+
+/**
  * Get current user info (used to check if token is still valid on app load).
  * Sends: nothing (token is in the header automatically)
  * Receives: { id, name, email, preferred_genres, is_onboarded }

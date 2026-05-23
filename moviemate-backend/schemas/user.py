@@ -33,6 +33,11 @@ class UserLogin(BaseModel):
     password: str
 
 
+class GoogleAuthRequest(BaseModel):
+    """Schema for Google Sign-In request."""
+    credential: str
+
+
 class UserResponse(BaseModel):
     """Schema for user data in responses — what the backend sends back.
     Notice: NO password field here. Never send passwords back!"""

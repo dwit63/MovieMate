@@ -13,8 +13,7 @@
  */
 
 import { createContext, useContext, useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { loginUser, signupUser, getCurrentUser } from '../services/api';
+import { loginUser, signupUser, googleAuth, getCurrentUser } from '../services/api';
 import toast from 'react-hot-toast';
 
 // Create the context (like creating a global container)
@@ -110,6 +109,27 @@ export function AuthProvider({ children }) {
   };
 
   /**
+   * Google login/signup function — called after Google returns an ID token.
+   */
+  const googleLogin = async (credential) => {
+    try {
+      const data = await googleAuth(credential);
+
+      localStorage.setItem('moviemate_token', data.token);
+      setToken(data.token);
+      setUser(data.user);
+
+      toast.success(data.message || 'Logged in successfully!');
+
+      return { success: true, user: data.user };
+    } catch (error) {
+      const message = error.response?.data?.detail || 'Google sign-in failed. Please try again.';
+      toast.error(message);
+      return { success: false, error: message };
+    }
+  };
+
+  /**
    * Logout function — clears everything.
    */
   const logout = () => {
@@ -134,6 +154,7 @@ export function AuthProvider({ children }) {
     isLoading,
     login,
     signup,
+    googleLogin,
     logout,
     updateUser,
   };
@@ -151,6 +172,7 @@ export function AuthProvider({ children }) {
  * Usage:
  *   const { user, login, logout, isAuthenticated } = useAuth();
  */
+// eslint-disable-next-line react-refresh/only-export-components
 export function useAuth() {
   const context = useContext(AuthContext);
   if (!context) {

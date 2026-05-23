@@ -32,6 +32,9 @@ class Settings:
     # CORS (Frontend URL)
     FRONTEND_URL: str = os.getenv("FRONTEND_URL", "http://localhost:5173")
 
+    # Google OAuth
+    GOOGLE_CLIENT_ID: str = os.getenv("GOOGLE_CLIENT_ID", "")
+
 
 # Create a single settings instance to use everywhere
 settings = Settings()

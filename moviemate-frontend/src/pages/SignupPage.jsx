@@ -1,13 +1,15 @@
 import { useState } from 'react';
 import { Link, useNavigate, Navigate } from 'react-router-dom';
+import { GoogleLogin } from '@react-oauth/google';
 import { Film, Eye, EyeOff } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 
 export default function SignupPage() {
   const navigate = useNavigate();
-  const { signup, isAuthenticated, user } = useAuth();
+  const { signup, googleLogin, isAuthenticated, user } = useAuth();
+  const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
-  // All hooks must be declared before any early returns (React Rules of Hooks)
   const [form, setForm] = useState({ name: '', email: '', password: '', confirmPassword: '' });
   const [errors, setErrors] = useState({});
   const [showPassword, setShowPassword] = useState(false);
@@ -57,12 +59,22 @@ export default function SignupPage() {
     if (result.success) {
       navigate('/onboarding', { replace: true });
     }
-    // Error toast is shown automatically by AuthContext
+  };
+
+  const handleGoogleSuccess = async (credentialResponse) => {
+    if (!credentialResponse.credential) {
+      toast.error('Google did not return a credential.');
+      return;
+    }
+
+    const result = await googleLogin(credentialResponse.credential);
+    if (result.success) {
+      navigate(result.user?.is_onboarded ? '/home' : '/onboarding', { replace: true });
+    }
   };
 
   return (
     <div className="min-h-screen flex flex-col bg-dark text-white font-sans">
-      {/* Header */}
       <header className="flex items-center border-b border-dark-border px-6 md:px-10 py-4 bg-dark">
         <Link to="/home" className="flex items-center gap-2">
           <Film className="w-6 h-6 text-white" />
@@ -70,7 +82,6 @@ export default function SignupPage() {
         </Link>
       </header>
 
-      {/* Main */}
       <main className="flex-1 flex items-center justify-center p-6">
         <div className="w-full max-w-[480px] bg-dark-card border border-dark-border rounded-xl p-8 md:p-10 shadow-2xl">
           <div className="text-center mb-8">
@@ -83,7 +94,6 @@ export default function SignupPage() {
           )}
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-5" noValidate>
-            {/* Full Name */}
             <div className="flex flex-col gap-1.5">
               <label className="text-sm font-medium">Full Name</label>
               <input
@@ -97,7 +107,6 @@ export default function SignupPage() {
               {errors.name && <p className="text-red-500 text-xs">{errors.name}</p>}
             </div>
 
-            {/* Email */}
             <div className="flex flex-col gap-1.5">
               <label className="text-sm font-medium">Email Address</label>
               <input
@@ -111,7 +120,6 @@ export default function SignupPage() {
               {errors.email && <p className="text-red-500 text-xs">{errors.email}</p>}
             </div>
 
-            {/* Password */}
             <div className="flex flex-col gap-1.5">
               <label className="text-sm font-medium">Password</label>
               <div className="relative">
@@ -134,7 +142,6 @@ export default function SignupPage() {
               {errors.password && <p className="text-red-500 text-xs">{errors.password}</p>}
             </div>
 
-            {/* Confirm Password */}
             <div className="flex flex-col gap-1.5">
               <label className="text-sm font-medium">Confirm Password</label>
               <div className="relative">
@@ -157,7 +164,6 @@ export default function SignupPage() {
               {errors.confirmPassword && <p className="text-red-500 text-xs">{errors.confirmPassword}</p>}
             </div>
 
-            {/* Submit */}
             <button
               type="submit"
               disabled={loading}
@@ -166,6 +172,29 @@ export default function SignupPage() {
               {loading ? 'Creating Account...' : 'Create Account'}
             </button>
           </form>
+
+          <div className="my-8 flex items-center gap-4">
+            <div className="h-px flex-1 bg-dark-border" />
+            <span className="text-gray-500 text-xs uppercase tracking-widest">or</span>
+            <div className="h-px flex-1 bg-dark-border" />
+          </div>
+
+          <div className="flex justify-center">
+            {googleClientId ? (
+              <GoogleLogin
+                onSuccess={handleGoogleSuccess}
+                onError={() => toast.error('Google sign-in failed. Please try again.')}
+                text="continue_with"
+                theme="filled_black"
+                shape="rectangular"
+                width="400"
+              />
+            ) : (
+              <div className="w-full rounded-lg border border-dark-border bg-dark px-4 py-3 text-center text-sm text-gray-400">
+                Google sign-in is not configured.
+              </div>
+            )}
+          </div>
 
           <div className="mt-8 text-center">
             <p className="text-gray-400 text-sm">
@@ -178,9 +207,8 @@ export default function SignupPage() {
         </div>
       </main>
 
-      {/* Footer */}
       <footer className="p-6 text-center text-gray-500 text-xs">
-        <p>© 2024 MovieMate. All rights reserved.</p>
+        <p>&copy; 2024 MovieMate. All rights reserved.</p>
       </footer>
     </div>
   );

@@ -2,15 +2,28 @@
 routers/auth.py — Authentication API Endpoints
 """
 
+import secrets
+
 from fastapi import APIRouter, Depends, HTTPException, status, Body
+from google.auth.transport import requests as google_requests
+from google.oauth2 import id_token
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from config import settings
 from database import get_db
 from models.user import User
 from models.user_genre import UserGenre
 from models.rating import Rating
 from models.movie import Movie
-from schemas.user import UserCreate, UserLogin, UserResponse, UserUpdate, AuthResponse
+from schemas.user import (
+    UserCreate,
+    UserLogin,
+    GoogleAuthRequest,
+    UserResponse,
+    UserUpdate,
+    AuthResponse,
+)
 from services.auth_service import (
     hash_password,
     verify_password,
@@ -97,6 +110,72 @@ async def login(user_data: UserLogin, db: Session = Depends(get_db)):
         token=token,
         user=UserResponse.model_validate(user),
         message="Logged in successfully!"
+    )
+
+
+@router.post("/google", response_model=AuthResponse)
+async def google_auth(auth_data: GoogleAuthRequest, db: Session = Depends(get_db)):
+    if not settings.GOOGLE_CLIENT_ID:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Google authentication is not configured."
+        )
+
+    if not auth_data.credential:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Google credential is required."
+        )
+
+    try:
+        google_user = id_token.verify_oauth2_token(
+            auth_data.credential,
+            google_requests.Request(),
+            settings.GOOGLE_CLIENT_ID,
+        )
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid Google credential."
+        )
+
+    email = str(google_user.get("email") or "").strip().lower()
+    email_verified = google_user.get("email_verified")
+
+    if not email:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Google account did not provide an email address."
+        )
+
+    if not email_verified:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Google email address is not verified."
+        )
+
+    user = db.query(User).filter(func.lower(User.email) == email).first()
+    message = "Logged in successfully!"
+
+    if not user:
+        random_password = secrets.token_urlsafe(32)
+        user = User(
+            name=google_user.get("name") or email.split("@")[0],
+            email=email,
+            hashed_password=hash_password(random_password),
+            is_onboarded=False,
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+        message = "Account created successfully!"
+
+    token = create_access_token(data={"sub": str(user.id)})
+
+    return AuthResponse(
+        token=token,
+        user=UserResponse.model_validate(user),
+        message=message
     )
 
 
