@@ -1,9 +1,6 @@
 import { Link } from 'react-router-dom';
 import { Film } from 'lucide-react';
-import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
-
-const soon = (label) => () => toast(`${label} — coming soon!`);
 
 function Logo() {
   return (
@@ -16,6 +13,18 @@ function Logo() {
   );
 }
 
+function LegalLinks({ size = 'xs' }) {
+  const className = `text-gray-500 hover:text-gray-300 ${size === 'sm' ? 'text-sm' : 'text-xs'} transition-colors`;
+
+  return (
+    <>
+      <Link to="/privacy-policy" className={className}>Privacy Policy</Link>
+      <Link to="/terms-of-service" className={className}>Terms of Service</Link>
+      <Link to="/cookie-policy" className={className}>Cookie Policy</Link>
+    </>
+  );
+}
+
 export default function Footer() {
   const { isAuthenticated } = useAuth();
 
@@ -25,11 +34,9 @@ export default function Footer() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 flex flex-col sm:flex-row items-center justify-between gap-4">
           <Logo />
           <div className="flex items-center gap-6">
-            <button onClick={soon('Privacy Policy')} className="text-gray-500 hover:text-gray-300 text-xs transition-colors">Privacy Policy</button>
-            <button onClick={soon('Terms of Service')} className="text-gray-500 hover:text-gray-300 text-xs transition-colors">Terms of Service</button>
-            <button onClick={soon('Cookie Policy')} className="text-gray-500 hover:text-gray-300 text-xs transition-colors">Cookie Policy</button>
+            <LegalLinks />
           </div>
-          <p className="text-gray-600 text-xs">© {new Date().getFullYear()} MovieMate. All rights reserved.</p>
+          <p className="text-gray-600 text-xs">&copy; {new Date().getFullYear()} MovieMate. All rights reserved.</p>
         </div>
       </footer>
     );
@@ -59,15 +66,12 @@ export default function Footer() {
             </div>
             <div className="flex flex-col gap-2">
               <p className="text-white text-sm font-semibold mb-1">Company</p>
-              <button onClick={soon('About')} className="text-gray-500 hover:text-gray-300 text-sm transition-colors text-left">About</button>
-              <button onClick={soon('Privacy Policy')} className="text-gray-500 hover:text-gray-300 text-sm transition-colors text-left">Privacy Policy</button>
-              <button onClick={soon('Terms of Service')} className="text-gray-500 hover:text-gray-300 text-sm transition-colors text-left">Terms of Service</button>
-              <button onClick={soon('Contact')} className="text-gray-500 hover:text-gray-300 text-sm transition-colors text-left">Contact</button>
+              <LegalLinks size="sm" />
             </div>
           </div>
         </div>
         <div className="mt-8 pt-6 border-t border-dark-border">
-          <p className="text-gray-600 text-xs text-center">© {new Date().getFullYear()} MovieMate. All rights reserved.</p>
+          <p className="text-gray-600 text-xs text-center">&copy; {new Date().getFullYear()} MovieMate. All rights reserved.</p>
         </div>
       </div>
     </footer>

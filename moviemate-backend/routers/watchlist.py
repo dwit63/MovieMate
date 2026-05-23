@@ -284,6 +284,58 @@ async def mark_as_watched(
     }
 
 
+@router.post("/unwatched")
+async def unmark_as_watched(
+    data: dict,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Move a movie from watch history back to the user's watchlist.
+
+    Frontend sends: { "movie_id": 550 }
+    """
+    movie_id = data.get("movie_id")
+
+    if not movie_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="movie_id is required"
+        )
+
+    history_entry = db.query(WatchHistory).filter(
+        WatchHistory.user_id == current_user.id,
+        WatchHistory.movie_id == movie_id
+    ).first()
+
+    if not history_entry:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Movie not found in your watched history"
+        )
+
+    db.delete(history_entry)
+
+    existing_watchlist = db.query(Watchlist).filter(
+        Watchlist.user_id == current_user.id,
+        Watchlist.movie_id == movie_id
+    ).first()
+
+    if not existing_watchlist:
+        await _ensure_movie_exists(movie_id, db)
+        db.add(Watchlist(
+            user_id=current_user.id,
+            movie_id=movie_id
+        ))
+
+    db.commit()
+
+    return {
+        "message": "Moved back to watchlist",
+        "movie_id": movie_id
+    }
+
+
 @router.get("/history")
 async def get_watch_history(
     current_user: User = Depends(get_current_user),

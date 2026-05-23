@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
-import { Film, Bell, LogOut, User, Compass, Smile, Bookmark, Menu, X } from 'lucide-react';
+import { Film, LogOut, User, Compass, Smile, Bookmark, Menu, X, Star } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import SearchBar from './SearchBar';
+import { getUserInitials } from '../utils/userInitials';
 
-// ── NEW: Link to /home when logged in, / when guest ──
 function Logo({ authenticated }) {
   return (
     <Link to={authenticated ? '/home' : '/'} className="flex items-center gap-2 flex-shrink-0">
@@ -25,13 +25,14 @@ export default function Navbar() {
   const { user, isAuthenticated, logout } = useAuth();
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const initials = getUserInitials(user);
 
   const closeMobile = () => setMobileOpen(false);
 
   const handleLogout = () => {
     logout();
     closeMobile();
-    navigate('/', { replace: true }); // ← replace so back button doesn't return to protected page
+    navigate('/', { replace: true });
   };
 
   if (!isAuthenticated) {
@@ -76,6 +77,10 @@ export default function Navbar() {
               <Bookmark size={16} />
               Watchlist
             </NavLink>
+            <NavLink to="/rated-movies" className={navLinkClass}>
+              <Star size={16} />
+              Rated Movies
+            </NavLink>
           </div>
         </div>
 
@@ -84,18 +89,11 @@ export default function Navbar() {
         </div>
 
         <div className="flex items-center gap-2">
-          <button className="p-2 rounded-full hover:bg-dark-hover transition-colors text-gray-400 hover:text-white relative">
-            <Bell size={18} />
-            <span className="absolute top-1 right-1 w-2 h-2 bg-accent rounded-full" />
-          </button>
           <div className="relative group">
             <button className="flex items-center gap-2 p-1 rounded-full hover:bg-dark-hover transition-colors">
-              <img
-                src={user?.avatar}
-                alt={user?.name}
-                className="w-8 h-8 rounded-full object-cover border border-dark-border"
-                onError={(e) => { e.target.src = 'https://placehold.co/32x32/252525/ffffff?text=U'; }}
-              />
+              <span className="w-8 h-8 rounded-full bg-accent/15 border border-accent/30 text-accent flex items-center justify-center text-xs font-black">
+                {initials}
+              </span>
             </button>
             <div className="absolute right-0 top-full mt-2 w-48 bg-dark-card border border-dark-border rounded-xl overflow-hidden shadow-2xl invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-all">
               <div className="px-4 py-3 border-b border-dark-border">
@@ -108,6 +106,13 @@ export default function Navbar() {
               >
                 <User size={15} />
                 Profile
+              </Link>
+              <Link
+                to="/rated-movies"
+                className="flex items-center gap-2 px-4 py-2.5 text-gray-400 hover:text-white hover:bg-dark-hover transition-colors text-sm"
+              >
+                <Star size={15} />
+                Rated Movies
               </Link>
               <button
                 onClick={handleLogout}
@@ -142,6 +147,10 @@ export default function Navbar() {
           <NavLink to="/watchlist" className={navLinkClass} onClick={closeMobile}>
             <Bookmark size={16} />
             Watchlist
+          </NavLink>
+          <NavLink to="/rated-movies" className={navLinkClass} onClick={closeMobile}>
+            <Star size={16} />
+            Rated Movies
           </NavLink>
           <div className="mt-2 pt-2 border-t border-dark-border">
             <SearchBar />

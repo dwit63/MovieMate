@@ -1,5 +1,11 @@
-import { createContext, useContext, useState, useEffect } from 'react';
-import { getWatchlistIds, getUserRatingIds, addToWatchlist, removeFromWatchlist, rateMovie } from '../services/api';
+import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import {
+  getWatchlistIds,
+  getUserRatingIds,
+  addToWatchlist,
+  removeFromWatchlist,
+  rateMovie,
+} from '../services/api';
 import { useAuth } from './AuthContext';
 import toast from 'react-hot-toast';
 
@@ -11,40 +17,34 @@ export function WatchlistProvider({ children }) {
   const [userRatings, setUserRatings] = useState({});
   const [isLoading, setIsLoading] = useState(false);
 
-  useEffect(() => {
-    const fetchUserData = async () => {
-      if (!isAuthenticated) {
-        setWatchlistIds([]);
-        setUserRatings({});
-        setIsLoading(false);
-        return;
-      }
+  const refreshUserMovieData = useCallback(async () => {
+    if (!isAuthenticated) {
+      setWatchlistIds([]);
+      setUserRatings({});
+      setIsLoading(false);
+      return;
+    }
 
-      try {
-        setIsLoading(true);
-        const [watchlistData, ratingsData] = await Promise.all([
-          getWatchlistIds(),
-          getUserRatingIds(),
-        ]);
+    try {
+      setIsLoading(true);
+      const [watchlistData, ratingsData] = await Promise.all([
+        getWatchlistIds(),
+        getUserRatingIds(),
+      ]);
 
-        // ── FIX: Always store IDs as Numbers so includes() works reliably
-        // Backend may return strings or ints depending on SQLite — normalise here
-        setWatchlistIds((watchlistData.movie_ids || []).map(Number));
-
-        // Ratings keys from JSON are always strings e.g. { "550": 4.5 }
-        // We keep them as strings and always look up with String(id)
-        setUserRatings(ratingsData.ratings || {});
-      } catch (error) {
-        console.error('Error fetching user data:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchUserData();
+      setWatchlistIds((watchlistData.movie_ids || []).map(Number));
+      setUserRatings(ratingsData.ratings || {});
+    } catch (error) {
+      console.error('Error fetching user data:', error);
+    } finally {
+      setIsLoading(false);
+    }
   }, [isAuthenticated]);
 
-  // ── FIX: Normalise incoming movieId to Number before comparing ──
+  useEffect(() => {
+    refreshUserMovieData();
+  }, [refreshUserMovieData]);
+
   const isInWatchlist = (movieId) => {
     return watchlistIds.includes(Number(movieId));
   };
@@ -57,12 +57,11 @@ export function WatchlistProvider({ children }) {
         toast.success('Removed from watchlist');
       } else {
         await addToWatchlist(movieId);
-        setWatchlistIds((prev) => [...prev, Number(movieId)]); // ← store as Number
+        setWatchlistIds((prev) => [...prev, Number(movieId)]);
         toast.success('Added to watchlist!');
       }
     } catch (error) {
       if (error.response?.status === 400) {
-        // Backend says already in watchlist — sync local state and show neutral toast
         setWatchlistIds((prev) =>
           prev.includes(Number(movieId)) ? prev : [...prev, Number(movieId)]
         );
@@ -79,12 +78,21 @@ export function WatchlistProvider({ children }) {
       await removeFromWatchlist(movieId);
       setWatchlistIds((prev) => prev.filter((id) => id !== Number(movieId)));
       toast.success('Removed from watchlist');
-    } catch (error) {
+    } catch {
       toast.error('Failed to remove');
     }
   };
 
-  // ── FIX: Always look up ratings with String key since JSON keys are strings ──
+  const markWatchedInContext = (movieId) => {
+    setWatchlistIds((prev) => prev.filter((id) => id !== Number(movieId)));
+  };
+
+  const moveBackToWatchlistInContext = (movieId) => {
+    setWatchlistIds((prev) =>
+      prev.includes(Number(movieId)) ? prev : [Number(movieId), ...prev]
+    );
+  };
+
   const getUserRating = (movieId) => {
     return userRatings[String(movieId)] || null;
   };
@@ -92,9 +100,9 @@ export function WatchlistProvider({ children }) {
   const submitRating = async (movieId, rating) => {
     try {
       await rateMovie(movieId, rating);
-      setUserRatings((prev) => ({ ...prev, [String(movieId)]: rating })); // ← store as String key
+      setUserRatings((prev) => ({ ...prev, [String(movieId)]: rating }));
       toast.success(`Rated ${rating} star${rating !== 1 ? 's' : ''}!`);
-    } catch (error) {
+    } catch {
       toast.error('Failed to save rating');
     }
   };
@@ -106,6 +114,9 @@ export function WatchlistProvider({ children }) {
     isInWatchlist,
     toggleWatchlist,
     removeFromList,
+    markWatchedInContext,
+    moveBackToWatchlistInContext,
+    refreshUserMovieData,
     getUserRating,
     submitRating,
   };
@@ -117,6 +128,7 @@ export function WatchlistProvider({ children }) {
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useWatchlist() {
   const context = useContext(WatchlistContext);
   if (!context) {

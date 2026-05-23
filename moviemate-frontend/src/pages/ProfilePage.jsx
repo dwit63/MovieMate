@@ -2,13 +2,14 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import {
-  Pencil, BarChart3, Star, Settings, SlidersHorizontal,
-  Share2, Trash2, Plus,
+  BarChart3, Star, Settings, SlidersHorizontal,
+  Trash2, Plus,
 } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { motion as Motion } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { getUserProfile, updateProfile } from '../services/api';
+import { getUserInitials } from '../utils/userInitials';
 
 const fadeUp = {
   hidden: { opacity: 0, y: 20 },
@@ -101,6 +102,7 @@ export default function ProfilePage() {
   const memberSince = user?.member_since
     ? new Date(user.member_since).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
     : '';
+  const initials = getUserInitials(user);
 
   return (
     <div className="w-full min-h-screen">
@@ -111,23 +113,15 @@ export default function ProfilePage() {
           <div className="lg:col-span-8 space-y-6">
 
             {/* Profile Header */}
-            <motion.section
+            <Motion.section
               variants={fadeUp} initial="hidden" animate="visible" custom={0}
-              className="flex flex-col md:flex-row items-center md:items-end gap-6 bg-dark-card border border-dark-border rounded-2xl p-8"
+              className="flex flex-col md:flex-row items-center gap-6 bg-dark-card border border-dark-border rounded-2xl p-8"
             >
               {/* Avatar — initials fallback */}
-              <div className="relative shrink-0">
-                <div className="w-28 h-28 rounded-full ring-4 ring-accent/20 overflow-hidden bg-dark-secondary flex items-center justify-center">
-                  <span className="text-white text-3xl font-black">
-                    {user?.name?.slice(0, 2).toUpperCase() || '??'}
-                  </span>
-                </div>
-                <button
-                  className="absolute bottom-0 right-0 p-1.5 bg-accent hover:bg-accent-hover text-white rounded-full shadow-lg transition-colors"
-                  aria-label="Edit avatar"
-                >
-                  <Pencil size={12} />
-                </button>
+              <div className="w-28 h-28 rounded-full ring-4 ring-accent/20 bg-accent/15 border border-accent/30 flex items-center justify-center shrink-0">
+                <span className="text-accent text-3xl font-black">
+                  {initials}
+                </span>
               </div>
 
               {/* Info */}
@@ -137,22 +131,10 @@ export default function ProfilePage() {
                 <p className="text-gray-500 text-xs mt-1">Member since {memberSince}</p>
               </div>
 
-              {/* Actions */}
-              <div className="flex gap-2 shrink-0">
-                <button className="px-5 py-2 bg-accent hover:bg-accent-hover text-white font-bold text-sm rounded-xl transition-all active:scale-95">
-                  Follow
-                </button>
-                <button
-                  className="px-3 py-2 bg-dark border border-dark-border text-gray-400 hover:text-white rounded-xl transition-colors"
-                  aria-label="Share profile"
-                >
-                  <Share2 size={16} />
-                </button>
-              </div>
-            </motion.section>
+            </Motion.section>
 
             {/* Activity Overview */}
-            <motion.section
+            <Motion.section
               variants={fadeUp} initial="hidden" animate="visible" custom={1}
               className="bg-dark-card border border-dark-border rounded-2xl p-8"
             >
@@ -208,10 +190,10 @@ export default function ProfilePage() {
                   <p className="text-gray-500 text-sm">Rate some movies to see your genre distribution.</p>
                 )}
               </div>
-            </motion.section>
+            </Motion.section>
 
             {/* Recently Rated */}
-            <motion.section
+            <Motion.section
               variants={fadeUp} initial="hidden" animate="visible" custom={2}
               className="bg-dark-card border border-dark-border rounded-2xl p-8"
             >
@@ -257,7 +239,7 @@ export default function ProfilePage() {
               ) : (
                 <p className="text-gray-500 text-sm">You haven't rated any movies yet.</p>
               )}
-            </motion.section>
+            </Motion.section>
 
           </div>
 
@@ -265,7 +247,7 @@ export default function ProfilePage() {
           <div className="lg:col-span-4 space-y-6">
 
             {/* Edit Profile */}
-            <motion.section
+            <Motion.section
               variants={fadeUp} initial="hidden" animate="visible" custom={0}
               className="bg-dark-card border border-dark-border rounded-2xl p-6"
             >
@@ -306,10 +288,10 @@ export default function ProfilePage() {
                   Update Profile
                 </button>
               </form>
-            </motion.section>
+            </Motion.section>
 
             {/* Preferences */}
-            <motion.section
+            <Motion.section
               variants={fadeUp} initial="hidden" animate="visible" custom={1}
               className="bg-dark-card border border-dark-border rounded-2xl p-6"
             >
@@ -338,10 +320,10 @@ export default function ProfilePage() {
                   Add More
                 </button>
               </div>
-            </motion.section>
+            </Motion.section>
 
             {/* Danger Zone */}
-            <motion.div
+            <Motion.div
               variants={fadeUp} initial="hidden" animate="visible" custom={2}
               className="text-center py-2"
             >
@@ -352,7 +334,7 @@ export default function ProfilePage() {
                 <Trash2 size={14} />
                 Delete Account
               </button>
-            </motion.div>
+            </Motion.div>
 
           </div>
         </div>

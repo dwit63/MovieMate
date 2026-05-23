@@ -341,6 +341,15 @@ export const markAsWatched = async (movieId) => {
 };
 
 /**
+ * Move a watched movie back to watchlist.
+ * Used on: "Move Back to Watchlist" button in watched history
+ */
+export const unmarkAsWatched = async (movieId) => {
+  const response = await API.post('/watchlist/unwatched', { movie_id: movieId });
+  return response.data;
+};
+
+/**
  * Get watch history.
  * Used on: Profile page stats
  */

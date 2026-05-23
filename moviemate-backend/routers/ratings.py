@@ -12,6 +12,7 @@ All endpoints require authentication (JWT token).
 """
 
 import asyncio
+import math
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -215,12 +216,15 @@ async def get_rating_stats(
         Rating.user_id == current_user.id
     ).all()
 
+    breakdown = {"5": 0, "4": 0, "3": 0, "2": 0, "1": 0}
+
     if not ratings:
         return {
             "total_rated": 0,
             "average_rating": 0,
             "highest_rated": None,
             "lowest_rated": None,
+            "rating_breakdown": breakdown,
         }
 
     total = len(ratings)
@@ -229,6 +233,11 @@ async def get_rating_stats(
     # Find highest and lowest rated movie IDs
     highest = max(ratings, key=lambda r: r.rating)
     lowest = min(ratings, key=lambda r: r.rating)
+
+    for r in ratings:
+        bucket = math.floor(float(r.rating) + 0.5)
+        bucket = max(1, min(5, bucket))
+        breakdown[str(bucket)] += 1
 
     return {
         "total_rated": total,
@@ -240,7 +249,8 @@ async def get_rating_stats(
         "lowest_rated": {
             "movie_id": lowest.movie_id,
             "rating": lowest.rating
-        }
+        },
+        "rating_breakdown": breakdown,
     }
 
 

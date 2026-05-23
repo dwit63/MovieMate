@@ -19,8 +19,10 @@ import MovieDetailPage from './pages/MovieDetailPage';
 import MoodPage from './pages/MoodPage';
 import RecommendationsPage from './pages/RecommendationsPage';
 import WatchlistPage from './pages/WatchlistPage';
+import RatedMoviesPage from './pages/RatedMoviesPage';
 import SearchResultsPage from './pages/SearchResultsPage';
 import ProfilePage from './pages/ProfilePage';
+import LegalPage from './pages/LegalPage';
 import NotFoundPage from './pages/NotFoundPage';
 
 const NO_CHROME_ROUTES = ['/', '/login', '/signup', '/onboarding'];
@@ -31,7 +33,8 @@ export default function App() {
   const is404 = ![
     '/', '/login', '/signup', '/onboarding',
     '/home', '/explore', '/mood', '/watchlist',
-    '/recommendations', '/search', '/profile',
+    '/rated-movies', '/recommendations', '/search', '/profile',
+    '/privacy-policy', '/terms-of-service', '/cookie-policy',
   ].some((r) => pathname === r || pathname.startsWith('/movie/'));
 
   const showChrome = !NO_CHROME_ROUTES.includes(pathname) && !is404;
@@ -52,8 +55,12 @@ export default function App() {
           <Route path="/mood" element={<MoodPage />} />
           <Route path="/recommendations" element={<ProtectedRoute><RecommendationsPage /></ProtectedRoute>} />
           <Route path="/watchlist" element={<ProtectedRoute><WatchlistPage /></ProtectedRoute>} />
+          <Route path="/rated-movies" element={<ProtectedRoute><RatedMoviesPage /></ProtectedRoute>} />
           <Route path="/search" element={<SearchResultsPage />} />
           <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
+          <Route path="/privacy-policy" element={<LegalPage />} />
+          <Route path="/terms-of-service" element={<LegalPage />} />
+          <Route path="/cookie-policy" element={<LegalPage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </main>
